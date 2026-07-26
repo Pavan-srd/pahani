@@ -385,6 +385,7 @@ class PahaniController extends Controller
     {
         $records = Pahani::with('pahaniDocument')
             ->where('village_id', $village->id)
+            ->where('uploaded_by', auth()->id() ?? 0)
             ->whereNull('deleted_at')
             ->get()
             ->map(fn($p) => [
