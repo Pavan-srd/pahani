@@ -427,7 +427,7 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Revenue Divisional Officer Portal (Version 3.1.2)
+      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District Portal (Version 3.1.2)
     </div>
   </div>
 

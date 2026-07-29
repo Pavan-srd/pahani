@@ -110,7 +110,7 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Revenue Divisional Officer (Name, Designation)
+      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District (Name, Designation)
     </div>
   </div>
 

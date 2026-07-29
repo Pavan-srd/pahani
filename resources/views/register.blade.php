@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Register — Indiramma Indlu Management System</title>
+  <title>Register — Land Record Digitalization</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;background:#f0f4f8;color:#1a1a2e}
@@ -74,7 +74,7 @@
     <div class="gov-logo-row">
       <div class="emblem">🏠</div>
       <div class="gov-title-block">
-        <div class="dept-name">Indiramma Indlu Management System</div>
+        <div class="dept-name">Land Record Digitalization</div>
         <div class="dept-sub">Housing Scheme Administration Portal</div>
       </div>
     </div>
@@ -159,7 +159,7 @@
   </div>
 
   <div class="portal-footer">
-    &copy; {{ date('Y') }} Indiramma Indlu Management System. All rights reserved.
+    &copy; {{ date('Y') }} Land Record Digitalization. All rights reserved.
   </div>
 
 </div>
