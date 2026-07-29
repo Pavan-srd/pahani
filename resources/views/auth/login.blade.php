@@ -133,9 +133,6 @@
         </form>
 
       </div>
-      <div class="auth-footer">
-        Don't have an account? <a href="{{ route('register') }}" class="link-muted">Register here</a>
-      </div>
     </div>
   </div>
 

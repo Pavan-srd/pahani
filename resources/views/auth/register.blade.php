@@ -60,6 +60,34 @@
 
     .portal-footer{text-align:center;font-size:10px;color:#888;padding:14px}
 
+    .field-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background-color: #f8fafc;
+      font-size: 14px;
+      color: #1e293b;
+      font-family: inherit;
+      height: 42px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23334155' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+      transition: border-color 0.2s ease;
+    }
+
+    .field-group select:focus {
+      outline: none;
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+    }
+
+    .field-group select:invalid {
+      color: #94a3b8;
+    }
+
     @media(max-width:600px){.form-row{grid-template-columns:1fr}.gov-title-block .dept-name{font-size:14px}}
   </style>
 </head>
@@ -118,6 +146,18 @@
               <label class="field-label" for="phone">Mobile Number <span class="req">*</span></label>
               <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" placeholder="10-digit mobile number" pattern="[0-9]{10}" required>
             </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="mandal_id">Working Mandal <span class="req">*</span></label>
+            <select id="mandal_id" name="mandal_id" required>
+              <option value="" disabled {{ old('mandal_id') ? '' : 'selected' }}>Select your mandal</option>
+              @foreach ($mandals as $mandal)
+                <option value="{{ $mandal->id }}" {{ old('mandal_id') == $mandal->id ? 'selected' : '' }}>
+                  {{ $mandal->name }}
+                </option>
+              @endforeach
+            </select>
           </div>
 
           <div class="field-group">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Mandal;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,8 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        return view('auth.register');
+        $mandals = Mandal::all();
+        return view('auth.register', compact('mandals'));
     }
 
     /**
@@ -39,6 +41,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'phone' => $request->phone,
+            'mandal_id' => (int) $request->mandal_id,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
