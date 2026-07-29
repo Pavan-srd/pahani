@@ -287,8 +287,8 @@ class PahaniController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Pahani store failed');
             $msg = 'Submission failed. Error: ' . ($e->getPrevious()?->getMessage() ?? $e->getMessage());
+            Log::error('Pahani store failed' . $msg);
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => $msg], 500);
             }
