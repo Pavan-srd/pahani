@@ -143,6 +143,30 @@
     .btn-secondary-sm:hover{background:#d6eaf8}
     .btn-primary-sm[disabled],.btn-secondary-sm[disabled]{opacity:0.6;cursor:not-allowed}
 
+    .mandal-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  
+    .mandal-checkbox-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #154360;
+    }
+  
+    .mandal-checkbox-item label {
+      flex: 1;
+      margin: 0;
+      font-size: 11px;
+      color: #1a1a2e;
+      cursor: pointer;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
     /* ══ RESPONSIVE ══ */
     @media(max-width:860px){
       .sidebar{position:fixed;top:0;bottom:0;left:0;margin-left:-230px}
@@ -486,22 +510,22 @@
             <input type="text" id="user-edit-name-input" name="name" autocomplete="off">
             <div class="field-error" id="user-edit-name-error"></div>
           </div>
-
+  
           <div class="form-field" id="user-edit-email-field">
             <label for="user-edit-email-input">Email <span class="req">*</span></label>
             <input type="text" id="user-edit-email-input" name="email" autocomplete="off">
             <div class="field-error" id="user-edit-email-error"></div>
           </div>
-
-          <!-- <div class="form-field" id="user-edit-role-field">
-            <label for="user-edit-role-select">Role</label>
-            <select id="user-edit-role-select" name="role">
-              <option value="Admin">Admin</option>
-              <option value="Staff">Staff</option>
-              <option value="User">User</option>
-            </select>
-            <div class="field-error" id="user-edit-role-error"></div>
-          </div> -->
+  
+          <!-- ══════════════ MANDALS MULTI-SELECT ══════════════ -->
+          <div class="form-field" id="user-edit-mandals-field">
+            <label>Assign Mandals</label>
+            <div id="user-edit-mandals-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; border: 1px solid #b0c4d8; border-radius: 2px; padding: 10px; background: #f8fbfd;">
+              <!-- Mandal checkboxes will be populated here -->
+            </div>
+            <div class="field-error" id="user-edit-mandals-error"></div>
+          </div>
+  
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary-sm" onclick="closeModal('user-edit-modal-overlay')">Cancel</button>
@@ -859,7 +883,7 @@ const EDIT_META = {
   village: { editUrl: id => `/api/admin/villages/${id}/edit`, updateUrl: id => `/api/admin/villages/${id}`, reloadTab: 'village' },
   users:   { editUrl: id => `/api/admin/users/${id}/edit`,    updateUrl: id => `/api/admin/users/${id}`,    reloadTab: 'users'   },
 };
-
+ 
 function openEditModal(tab, id) {
   fetch(EDIT_META[tab].editUrl(id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => {
@@ -882,14 +906,50 @@ function openEditModal(tab, id) {
       } else if (tab === 'users') {
         clearFieldError('user-edit-name-field', 'user-edit-name-error');
         clearFieldError('user-edit-email-field', 'user-edit-email-error');
+        clearFieldError('user-edit-mandals-field', 'user-edit-mandals-error');
+        
         document.getElementById('user-edit-id').value = record.id;
         document.getElementById('user-edit-name-input').value = record.name;
         document.getElementById('user-edit-email-input').value = record.email;
+        
+        // Populate mandals checkboxes
+        populateUserMandalCheckboxes(record.mandals);
+        
         // document.getElementById('user-edit-role-select').value = record.role || 'User';
         openModal('user-edit-modal-overlay');
       }
     })
     .catch(() => showToast('Failed to load record for editing.', true));
+}
+
+function populateUserMandalCheckboxes(mandals) {
+  const container = document.getElementById('user-edit-mandals-container');
+  container.innerHTML = ''; // Clear existing checkboxes
+ 
+  if (!mandals || mandals.length === 0) {
+    container.innerHTML = '<p style="font-size: 11px; color: #999; padding: 10px 0;">No mandals available.</p>';
+    return;
+  }
+ 
+  mandals.forEach(mandal => {
+    const div = document.createElement('div');
+    div.className = 'mandal-checkbox-item';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `mandal-checkbox-${mandal.id}`;
+    checkbox.name = 'mandal_ids[]';
+    checkbox.value = mandal.id;
+    checkbox.checked = mandal.assigned || false;
+    
+    const label = document.createElement('label');
+    label.htmlFor = `mandal-checkbox-${mandal.id}`;
+    label.textContent = mandal.name;
+    
+    div.appendChild(checkbox);
+    div.appendChild(label);
+    container.appendChild(div);
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1011,11 +1071,15 @@ function submitEditUserForm(e) {
   e.preventDefault();
   clearFieldError('user-edit-name-field', 'user-edit-name-error');
   clearFieldError('user-edit-email-field', 'user-edit-email-error');
-
+ 
   const id    = document.getElementById('user-edit-id').value;
   const name  = document.getElementById('user-edit-name-input').value.trim();
   const email = document.getElementById('user-edit-email-input').value.trim();
-
+ 
+  // Get selected mandal IDs
+  const mandalCheckboxes = document.querySelectorAll('#user-edit-mandals-container input[type="checkbox"]:checked');
+  const mandalIds = Array.from(mandalCheckboxes).map(cb => parseInt(cb.value));
+ 
   let hasError = false;
   if (!name) {
     setFieldError('user-edit-name-field', 'user-edit-name-error', 'Name is required.');
@@ -1026,11 +1090,11 @@ function submitEditUserForm(e) {
     hasError = true;
   }
   if (hasError) return;
-
+ 
   const btn = document.getElementById('user-edit-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Updating…';
-
+ 
   fetch(EDIT_META.users.updateUrl(id), {
     method: 'PUT',
     headers: {
@@ -1039,7 +1103,11 @@ function submitEditUserForm(e) {
       'X-CSRF-TOKEN': csrfToken(),
       'X-Requested-With': 'XMLHttpRequest',
     },
-    body: JSON.stringify({ name, email }),
+    body: JSON.stringify({ 
+      name, 
+      email,
+      mandal_ids: mandalIds,
+    }),
   })
   .then(async r => {
     const data = await r.json().catch(() => ({}));

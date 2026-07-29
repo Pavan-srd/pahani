@@ -12,18 +12,30 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
 
 class PahaniController extends Controller
 {
     // ── INDEX (upload form) ───────────────────────────────────────────────────
     public function index()
     {
-        $mandals  = Mandal::where('is_active', true)->orderBy('name')->get();
+        $user = Auth::user();
+
+        if ($user) {
+            $mandals = $user->mandals()
+                ->select('mandals.*')
+                ->where('mandals.is_active', true)
+                ->orderBy('mandals.name')
+                ->get();
+        } else {
+            $mandals = collect();
+        }
+
         $documents = PahaniDocument::where('is_active', true)
             ->orderBy('sort_order')
             ->get(['id', 'value', 'label', 'type', 'description']);
 
-        return view('index', compact('mandals', 'documents'));
+        return view('index', compact('mandals', 'documents', 'user'));
     }
 
     // ── STORE (form submit) ───────────────────────────────────────────────────
@@ -385,7 +397,6 @@ class PahaniController extends Controller
     {
         $records = Pahani::with('pahaniDocument')
             ->where('village_id', $village->id)
-            ->where('uploaded_by', auth()->id() ?? 0)
             ->whereNull('deleted_at')
             ->get()
             ->map(fn($p) => [
@@ -397,6 +408,7 @@ class PahaniController extends Controller
                 'file_name'        => $p->file_name,                // original filename
                 'file_path'        => $p->file_path,                // R2 object key
                 'file_size_human'  => $p->file_size_human,          // "1.23 MB"
+                'uploaded_by'      => $p->uploaded_by, 
             ]);
     
         return response()->json($records);

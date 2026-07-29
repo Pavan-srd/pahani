@@ -53,4 +53,18 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Mandal::class, 'mandal_id');
     }
+    
+    /**
+     * Many-to-Many relationship for assigned mandals
+     * User can be assigned to multiple mandals via user_mandals pivot table
+     */
+    public function mandals()
+    {
+        return $this->belongsToMany(
+            Mandal::class,
+            'user_mandals',      // pivot table name
+            'user_id',           // foreign key on pivot
+            'mandal_id'          // related foreign key on pivot
+        )->withTimestamps();
+    }
 }

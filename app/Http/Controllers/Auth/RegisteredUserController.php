@@ -36,8 +36,9 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'mandal_id' => ['required', 'integer', 'exists:mandals,id'],
         ]);
-
+ 
         $user = User::create([
             'name' => $request->name,
             'phone' => $request->phone,
@@ -45,11 +46,17 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
-
+ 
+        /**
+         * NEW: Save the selected mandal to user_mandals pivot table
+         * This establishes the many-to-many relationship between user and mandal
+         */
+        $user->mandals()->attach((int) $request->mandal_id);
+ 
         event(new Registered($user));
-
+ 
         Auth::login($user);
-
+ 
         return redirect(route('dashboard', absolute: false));
     }
 }

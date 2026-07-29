@@ -219,14 +219,24 @@ class AdminController extends Controller
 
     /**
      * GET /api/admin/users/{user}/edit
+     * Returns user data along with all available mandals and current assignments
      */
     public function editUser(User $user)
     {
+        $allMandals = Mandal::orderBy('name')->get(['id', 'name']);
+        $userMandalIds = $user->mandals()->pluck('mandal_id')->toArray();
+
         return response()->json([
-            'id'    => $user->id,
-            'name'  => $user->name,
-            'email' => $user->email,
-            'role'  => $user->role ?? 'User',
+            'id'          => $user->id,
+            'name'        => $user->name,
+            'email'       => $user->email,
+            'role'        => $user->role ?? 'User',
+            'mandals'     => $allMandals->map(fn (Mandal $m) => [
+                'id'       => $m->id,
+                'name'     => $m->name,
+                'assigned' => in_array($m->id, $userMandalIds),
+            ]),
+            'assigned_mandal_ids' => $userMandalIds,
         ]);
     }
 
@@ -312,17 +322,19 @@ class AdminController extends Controller
 
     /**
      * PUT /api/admin/users/{user}
-     * Body: { name: string, email: string, role: string, password?: string }
+     * Body: { name: string, email: string, role: string, password?: string, mandal_ids?: array }
      */
     public function updateUser(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => [
+            'name'        => ['required', 'string', 'max:255'],
+            'email'       => [
                 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'password'    => ['nullable', 'string', 'min:8', 'confirmed'],
+            'mandal_ids'  => ['nullable', 'array'],
+            'mandal_ids.*' => ['integer', 'exists:mandals,id'],
         ], [
             'email.unique' => 'A user with this email already exists.',
         ]);
@@ -333,6 +345,10 @@ class AdminController extends Controller
             $user->password = bcrypt($validated['password']);
         }
         $user->save();
+
+        // Sync mandal assignments (use sync to replace all assignments)
+        $mandalIds = $validated['mandal_ids'] ?? [];
+        $user->mandals()->sync($mandalIds);
 
         return response()->json([
             'success' => true,

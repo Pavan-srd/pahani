@@ -172,6 +172,13 @@
       <span style="font-size:10px;color:#888;margin-top:4px;display:block">Please do not close this tab</span>
     </div>
   </div>
+  @php
+    $currentUserId = auth()->id();
+    $userMandalIds = auth()->user()?->mandals()
+      ->select('mandals.*')
+      ->pluck('mandals.id')
+      ->toArray() ?? [];
+  @endphp
 
   {{-- ── HEADER ── --}}
   <div class="gov-header">
@@ -257,10 +264,18 @@
             <select id="mandal-select" onchange="onMandalChange()">
               <option value="">— Select Mandal —</option>
               @foreach($mandals as $mandal)
+                {{-- NEW: Check if user is assigned to this mandal --}}
+                @php
+                  $isAssigned = in_array($mandal->id, $userMandalIds);
+                @endphp
                 <option value="{{ $mandal->slug }}"
                   data-id="{{ $mandal->id }}"
-                  {{ old('mandal') == $mandal->slug ? 'selected' : '' }}>
+                  {{ old('mandal') == $mandal->slug ? 'selected' : '' }}
+                  {{ !$isAssigned ? 'disabled' : '' }}>
                   {{ $mandal->name }}
+                  @if(!$isAssigned)
+                    (Not assigned)
+                  @endif
                 </option>
               @endforeach
             </select>
@@ -328,6 +343,7 @@
 </div>{{-- /portal-wrap --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+  const CURRENT_USER_ID = {{ $currentUserId }};
   function confirmLogout() {
       Swal.fire({
           title: 'Logout?',
@@ -437,6 +453,7 @@ function onVillageChange() {
           existingFile:     rec.file_path  ?? null,
           existingFileName: rec.file_name  ?? null,
           pahaniId:         rec.id,
+          uploaded_by:      rec.uploaded_by,
         });
       });
 
@@ -660,49 +677,73 @@ function renderTable() {
     const tdUpload = document.createElement('td');
     tdUpload.id = 'upload-' + row.id;
     if (row.physical === 'Yes') {
-      // Render inline rather than calling renderUploadCell to avoid double-render
       const wrap = document.createElement('div');
+      
+      // NEW: Check if user can edit this document
+      // Allow if: (1) no pahaniId (new row) OR (2) user is the one who uploaded it
+      const canEdit = !row.pahaniId || row.uploaded_by === CURRENT_USER_ID;
+      
       if (row.existingFileName) {
         const saved = document.createElement('div');
         saved.className = 'saved-file';
-        saved.innerHTML = `<span class="saved-file-label">Saved</span> 📄 ${row.existingFileName} <span style="margin-left:auto;font-size:9px;color:#888">Replace below ↓</span>`;
+        
+        // NEW: Show ownership info and conditional replace message
+        let replaceText = '';
+        if (canEdit) {
+          replaceText = ' <span style="margin-left:auto;font-size:9px;color:#888">Replace below ↓</span>';
+        } else {
+          replaceText = ' <span style="margin-left:auto;font-size:9px;color:#c0392b">⛔ (Uploaded by another user)</span>';
+        }
+        
+        saved.innerHTML = `<span class="saved-file-label">Saved</span> 📄 ${row.existingFileName}${replaceText}`;
         wrap.appendChild(saved);
       }
-      const zone = document.createElement('div');
-      zone.className = 'upload-zone';
-      zone.innerHTML = `<input type="file" accept=".pdf">
-        <div class="uz-icon">📄</div>
-        <div class="uz-text">${row.existingFileName ? 'Replace PDF' : 'Click to upload PDF'}</div>
-        <div class="uz-hint">Max 5 MB | PDF only</div>`;
-      const fi = zone.querySelector('input');
-      fi.addEventListener('change', () => {
-        const f = fi.files[0];
-        if (!f) return;
-        if (f.size > 5*1024*1024) { showToast('File exceeds 5 MB limit.', true); fi.value=''; return; }
-        if (f.type !== 'application/pdf') { showToast('Only PDF files are allowed.', true); fi.value=''; return; }
-        row.fileName = f.name;
-        state.files[row.id] = f;
-        const old = wrap.querySelector('.uploaded-file');
-        if (old) old.remove();
-        const tag = document.createElement('div');
-        tag.className = 'uploaded-file';
-        tag.innerHTML = `📄 ${f.name.length>30?f.name.slice(0,27)+'...':f.name}
-          <button class="remove-btn" title="Remove">✕</button>`;
-        tag.querySelector('.remove-btn').onclick = () => {
-          row.fileName = null;
-          delete state.files[row.id];
-          tag.remove();
-          fi.value = '';
-        };
-        wrap.appendChild(tag);
-      });
-      wrap.appendChild(zone);
-      if (row.fileName) {
-        const tag = document.createElement('div');
-        tag.className = 'uploaded-file';
-        tag.innerHTML = `📄 ${row.fileName}`;
-        wrap.appendChild(tag);
+      
+      // NEW: Only show upload zone if user can edit this document
+      if (canEdit) {
+        const zone = document.createElement('div');
+        zone.className = 'upload-zone';
+        zone.innerHTML = `<input type="file" accept=".pdf">
+          <div class="uz-icon">📄</div>
+          <div class="uz-text">${row.existingFileName ? 'Replace PDF' : 'Click to upload PDF'}</div>
+          <div class="uz-hint">Max 5 MB | PDF only</div>`;
+        const fi = zone.querySelector('input');
+        fi.addEventListener('change', () => {
+          const f = fi.files[0];
+          if (!f) return;
+          if (f.size > 5*1024*1024) { showToast('File exceeds 5 MB limit.', true); fi.value=''; return; }
+          if (f.type !== 'application/pdf') { showToast('Only PDF files are allowed.', true); fi.value=''; return; }
+          row.fileName = f.name;
+          state.files[row.id] = f;
+          const old = wrap.querySelector('.uploaded-file');
+          if (old) old.remove();
+          const tag = document.createElement('div');
+          tag.className = 'uploaded-file';
+          tag.innerHTML = `📄 ${f.name.length>30?f.name.slice(0,27)+'...':f.name}
+            <button class="remove-btn" title="Remove">✕</button>`;
+          tag.querySelector('.remove-btn').onclick = () => {
+            row.fileName = null;
+            delete state.files[row.id];
+            tag.remove();
+            fi.value = '';
+          };
+          wrap.appendChild(tag);
+        });
+        wrap.appendChild(zone);
+        if (row.fileName) {
+          const tag = document.createElement('div');
+          tag.className = 'uploaded-file';
+          tag.innerHTML = `📄 ${row.fileName}`;
+          wrap.appendChild(tag);
+        }
+      } else {
+        // NEW: Show message if user cannot edit
+        const msg = document.createElement('div');
+        msg.className = 'no-doc-msg';
+        msg.innerHTML = '🔒 You cannot modify documents uploaded by other users.';
+        wrap.appendChild(msg);
       }
+      
       tdUpload.appendChild(wrap);
     } else if (row.physical === 'No') {
       tdUpload.innerHTML = '<div class="no-doc-msg">ℹ️ No physical document available</div>';

@@ -20,4 +20,14 @@ class Mandal extends Model
     {
         return $this->hasMany(Pahani::class);
     }
+
+    public function users()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'user_mandals',      // pivot table name
+            'mandal_id',         // foreign key on pivot
+            'user_id'            // related foreign key on pivot
+        )->withTimestamps();
+    }
 }
