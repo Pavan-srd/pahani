@@ -332,11 +332,7 @@
             <div class="search-box">
               🔎 <input type="text" id="users-search" placeholder="Search by name or email…" oninput="filterTable('users-tbody', this.value)">
             </div>
-            <button class="btn-primary-sm" onclick="showToast('Hook this up to your Add User modal/route')">
-              + Add User
-            </button>
           </div>
-
           <div class="section-card">
             <div class="loading-bar" id="users-loading"><div class="spinner"></div> Loading users…</div>
             <table class="data-table" id="users-table" style="display:none">
@@ -345,8 +341,7 @@
                   <th style="width:6%">#</th>
                   <th>Name</th>
                   <th>Email</th>
-                  <th style="width:14%">Role</th>
-                  <th style="width:12%">Status</th>
+                  <th style="width:14%">Working Mandal</th>
                   <th style="width:12%;text-align:center">Actions</th>
                 </tr>
               </thead>
@@ -417,6 +412,119 @@
           <button type="submit" class="btn-primary-sm" id="village-submit-btn">Save Village</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  {{-- ══════════════ EDIT MANDAL MODAL ══════════════ --}}
+  <div class="modal-overlay" id="mandal-edit-modal-overlay" onclick="if(event.target===this) closeModal('mandal-edit-modal-overlay')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✎ Edit Mandal</h3>
+        <button class="modal-close" onclick="closeModal('mandal-edit-modal-overlay')">✕</button>
+      </div>
+      <form id="mandal-edit-form" onsubmit="submitEditMandalForm(event)">
+        <div class="modal-body">
+          <input type="hidden" id="mandal-edit-id">
+          <div class="form-field" id="mandal-edit-name-field">
+            <label for="mandal-edit-name-input">Mandal Name <span class="req">*</span></label>
+            <input type="text" id="mandal-edit-name-input" name="name" autocomplete="off">
+            <div class="field-error" id="mandal-edit-name-error"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('mandal-edit-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="mandal-edit-submit-btn">Update Mandal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{-- ══════════════ EDIT VILLAGE MODAL ══════════════ --}}
+  <div class="modal-overlay" id="village-edit-modal-overlay" onclick="if(event.target===this) closeModal('village-edit-modal-overlay')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✎ Edit Village</h3>
+        <button class="modal-close" onclick="closeModal('village-edit-modal-overlay')">✕</button>
+      </div>
+      <form id="village-edit-form" onsubmit="submitEditVillageForm(event)">
+        <div class="modal-body">
+          <input type="hidden" id="village-edit-id">
+          <div class="form-field" id="village-edit-mandal-field">
+            <label for="village-edit-mandal-select">Mandal <span class="req">*</span></label>
+            <select id="village-edit-mandal-select" name="mandal_id">
+              <option value="">— Select Mandal —</option>
+            </select>
+            <div class="field-error" id="village-edit-mandal-error"></div>
+          </div>
+
+          <div class="form-field" id="village-edit-name-field">
+            <label for="village-edit-name-input">Village Name <span class="req">*</span></label>
+            <input type="text" id="village-edit-name-input" name="name" autocomplete="off">
+            <div class="field-error" id="village-edit-name-error"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('village-edit-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="village-edit-submit-btn">Update Village</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{-- ══════════════ EDIT USER MODAL ══════════════ --}}
+  <div class="modal-overlay" id="user-edit-modal-overlay" onclick="if(event.target===this) closeModal('user-edit-modal-overlay')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✎ Edit User</h3>
+        <button class="modal-close" onclick="closeModal('user-edit-modal-overlay')">✕</button>
+      </div>
+      <form id="user-edit-form" onsubmit="submitEditUserForm(event)">
+        <div class="modal-body">
+          <input type="hidden" id="user-edit-id">
+          <div class="form-field" id="user-edit-name-field">
+            <label for="user-edit-name-input">Name <span class="req">*</span></label>
+            <input type="text" id="user-edit-name-input" name="name" autocomplete="off">
+            <div class="field-error" id="user-edit-name-error"></div>
+          </div>
+
+          <div class="form-field" id="user-edit-email-field">
+            <label for="user-edit-email-input">Email <span class="req">*</span></label>
+            <input type="text" id="user-edit-email-input" name="email" autocomplete="off">
+            <div class="field-error" id="user-edit-email-error"></div>
+          </div>
+
+          <!-- <div class="form-field" id="user-edit-role-field">
+            <label for="user-edit-role-select">Role</label>
+            <select id="user-edit-role-select" name="role">
+              <option value="Admin">Admin</option>
+              <option value="Staff">Staff</option>
+              <option value="User">User</option>
+            </select>
+            <div class="field-error" id="user-edit-role-error"></div>
+          </div> -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('user-edit-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="user-edit-submit-btn">Update User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{-- ══════════════ GENERIC DELETE CONFIRM MODAL ══════════════ --}}
+  <div class="modal-overlay" id="delete-modal-overlay" onclick="if(event.target===this) closeModal('delete-modal-overlay')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🗑️ Confirm Delete</h3>
+        <button class="modal-close" onclick="closeModal('delete-modal-overlay')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="delete-modal-message" style="font-size:12px;color:#333;line-height:1.5"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary-sm" onclick="closeModal('delete-modal-overlay')">Cancel</button>
+        <button type="button" class="btn-icon danger" style="width:auto;padding:8px 16px;font-size:11px;font-weight:bold;text-transform:uppercase" id="delete-confirm-btn" onclick="confirmDelete()">Delete</button>
+      </div>
     </div>
   </div>
 
@@ -493,7 +601,7 @@ function renderTab(tab, rows) {
         <td>${escapeHtml(row.slug)}</td>
         <td>${row.villages_count ?? 0}</td>
         <td>${statusPill(row.is_active)}</td>
-        <td style="text-align:center">${rowActions(row.id)}</td>`;
+        <td style="text-align:center">${rowActions('mandal', row.id)}</td>`;
     } else if (tab === 'village') {
       tr.innerHTML = `
         <td>${i + 1}</td>
@@ -501,15 +609,14 @@ function renderTab(tab, rows) {
         <td>${escapeHtml(row.slug)}</td>
         <td>${escapeHtml(row.mandal_name ?? '—')}</td>
         <td>${statusPill(row.is_active)}</td>
-        <td style="text-align:center">${rowActions(row.id)}</td>`;
+        <td style="text-align:center">${rowActions('village', row.id)}</td>`;
     } else if (tab === 'users') {
       tr.innerHTML = `
         <td>${i + 1}</td>
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.email)}</td>
-        <td><span class="role-pill">${escapeHtml(row.role ?? 'User')}</span></td>
-        <td>${statusPill(row.is_active)}</td>
-        <td style="text-align:center">${rowActions(row.id)}</td>`;
+        <td><span class="role-pill">${escapeHtml(row.mandal ?? '-')}</span></td>
+        <td style="text-align:center">${rowActions('users', row.id)}</td>`;
     }
     tbody.appendChild(tr);
   });
@@ -521,11 +628,11 @@ function statusPill(isActive) {
     : '<span class="pill pill-inactive">— Inactive</span>';
 }
 
-function rowActions(id) {
+function rowActions(tab, id) {
   return `
     <div class="row-actions" style="justify-content:center">
-      <button class="btn-icon" title="Edit" onclick="showToast('Wire up edit for #${id}')">✎</button>
-      <button class="btn-icon danger" title="Delete" onclick="showToast('Wire up delete for #${id}')">✕</button>
+      <button class="btn-icon" title="Edit" onclick="openEditModal('${tab}', ${id})">✎</button>
+      <button class="btn-icon danger" title="Delete" onclick="openDeleteModal('${tab}', ${id})">✕</button>
     </div>`;
 }
 
@@ -657,12 +764,12 @@ function openAddVillageModal() {
   document.getElementById('village-add-form').reset();
   clearFieldError('village-mandal-field', 'village-mandal-error');
   clearFieldError('village-name-field', 'village-name-error');
-  populateMandalDropdown();
+  populateMandalDropdown('village-mandal-select');
   openModal('village-modal-overlay');
 }
 
-function populateMandalDropdown() {
-  const sel = document.getElementById('village-mandal-select');
+function populateMandalDropdown(selectId, selectedId = null) {
+  const sel = document.getElementById(selectId);
   sel.innerHTML = '<option value="">Loading mandals…</option>';
 
   fetch('/api/admin/mandals', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -675,6 +782,9 @@ function populateMandalDropdown() {
         opt.textContent = m.name;
         sel.appendChild(opt);
       });
+      if (selectedId !== null) {
+        sel.value = selectedId;
+      }
     })
     .catch(() => {
       sel.innerHTML = '<option value="">Failed to load mandals</option>';
@@ -738,6 +848,273 @@ function submitVillageForm(e) {
   .finally(() => {
     btn.disabled = false;
     btn.textContent = 'Save Village';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   EDIT — shared config
+══════════════════════════════════════════════════════════════════ */
+const EDIT_META = {
+  mandal:  { editUrl: id => `/api/admin/mandals/${id}/edit`,  updateUrl: id => `/api/admin/mandals/${id}`,  reloadTab: 'mandal'  },
+  village: { editUrl: id => `/api/admin/villages/${id}/edit`, updateUrl: id => `/api/admin/villages/${id}`, reloadTab: 'village' },
+  users:   { editUrl: id => `/api/admin/users/${id}/edit`,    updateUrl: id => `/api/admin/users/${id}`,    reloadTab: 'users'   },
+};
+
+function openEditModal(tab, id) {
+  fetch(EDIT_META[tab].editUrl(id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => {
+      if (!r.ok) throw new Error('not found');
+      return r.json();
+    })
+    .then(record => {
+      if (tab === 'mandal') {
+        clearFieldError('mandal-edit-name-field', 'mandal-edit-name-error');
+        document.getElementById('mandal-edit-id').value = record.id;
+        document.getElementById('mandal-edit-name-input').value = record.name;
+        openModal('mandal-edit-modal-overlay');
+      } else if (tab === 'village') {
+        clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
+        clearFieldError('village-edit-name-field', 'village-edit-name-error');
+        document.getElementById('village-edit-id').value = record.id;
+        document.getElementById('village-edit-name-input').value = record.name;
+        populateMandalDropdown('village-edit-mandal-select', record.mandal_id);
+        openModal('village-edit-modal-overlay');
+      } else if (tab === 'users') {
+        clearFieldError('user-edit-name-field', 'user-edit-name-error');
+        clearFieldError('user-edit-email-field', 'user-edit-email-error');
+        document.getElementById('user-edit-id').value = record.id;
+        document.getElementById('user-edit-name-input').value = record.name;
+        document.getElementById('user-edit-email-input').value = record.email;
+        // document.getElementById('user-edit-role-select').value = record.role || 'User';
+        openModal('user-edit-modal-overlay');
+      }
+    })
+    .catch(() => showToast('Failed to load record for editing.', true));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UPDATE MANDAL
+══════════════════════════════════════════════════════════════════ */
+function submitEditMandalForm(e) {
+  e.preventDefault();
+  clearFieldError('mandal-edit-name-field', 'mandal-edit-name-error');
+
+  const id   = document.getElementById('mandal-edit-id').value;
+  const name = document.getElementById('mandal-edit-name-input').value.trim();
+  if (!name) {
+    setFieldError('mandal-edit-name-field', 'mandal-edit-name-error', 'Mandal name is required.');
+    return;
+  }
+
+  const btn = document.getElementById('mandal-edit-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+
+  fetch(EDIT_META.mandal.updateUrl(id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ name }),
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422) {
+      const msg = data.errors?.name?.[0] || data.message || 'Validation failed.';
+      setFieldError('mandal-edit-name-field', 'mandal-edit-name-error', msg);
+      return;
+    }
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to update mandal.', true);
+      return;
+    }
+    showToast('✔ Mandal updated successfully.');
+    closeModal('mandal-edit-modal-overlay');
+    loadedTabs.delete('mandal');
+    loadTabData('mandal');
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Update Mandal';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UPDATE VILLAGE
+══════════════════════════════════════════════════════════════════ */
+function submitEditVillageForm(e) {
+  e.preventDefault();
+  clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
+  clearFieldError('village-edit-name-field', 'village-edit-name-error');
+
+  const id       = document.getElementById('village-edit-id').value;
+  const mandalId = document.getElementById('village-edit-mandal-select').value;
+  const name     = document.getElementById('village-edit-name-input').value.trim();
+
+  let hasError = false;
+  if (!mandalId) {
+    setFieldError('village-edit-mandal-field', 'village-edit-mandal-error', 'Please select a Mandal.');
+    hasError = true;
+  }
+  if (!name) {
+    setFieldError('village-edit-name-field', 'village-edit-name-error', 'Village name is required.');
+    hasError = true;
+  }
+  if (hasError) return;
+
+  const btn = document.getElementById('village-edit-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+
+  fetch(EDIT_META.village.updateUrl(id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ mandal_id: mandalId, name }),
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422) {
+      if (data.errors?.mandal_id) setFieldError('village-edit-mandal-field', 'village-edit-mandal-error', data.errors.mandal_id[0]);
+      if (data.errors?.name)      setFieldError('village-edit-name-field', 'village-edit-name-error', data.errors.name[0]);
+      if (!data.errors) showToast(data.message || 'Validation failed.', true);
+      return;
+    }
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to update village.', true);
+      return;
+    }
+    showToast('✔ Village updated successfully.');
+    closeModal('village-edit-modal-overlay');
+    loadedTabs.delete('village');
+    loadTabData('village');
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Update Village';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UPDATE USER
+══════════════════════════════════════════════════════════════════ */
+function submitEditUserForm(e) {
+  e.preventDefault();
+  clearFieldError('user-edit-name-field', 'user-edit-name-error');
+  clearFieldError('user-edit-email-field', 'user-edit-email-error');
+
+  const id    = document.getElementById('user-edit-id').value;
+  const name  = document.getElementById('user-edit-name-input').value.trim();
+  const email = document.getElementById('user-edit-email-input').value.trim();
+
+  let hasError = false;
+  if (!name) {
+    setFieldError('user-edit-name-field', 'user-edit-name-error', 'Name is required.');
+    hasError = true;
+  }
+  if (!email) {
+    setFieldError('user-edit-email-field', 'user-edit-email-error', 'Email is required.');
+    hasError = true;
+  }
+  if (hasError) return;
+
+  const btn = document.getElementById('user-edit-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+
+  fetch(EDIT_META.users.updateUrl(id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ name, email }),
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422) {
+      if (data.errors?.name)  setFieldError('user-edit-name-field', 'user-edit-name-error', data.errors.name[0]);
+      if (data.errors?.email) setFieldError('user-edit-email-field', 'user-edit-email-error', data.errors.email[0]);
+      if (!data.errors) showToast(data.message || 'Validation failed.', true);
+      return;
+    }
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to update user.', true);
+      return;
+    }
+    showToast('✔ User updated successfully.');
+    closeModal('user-edit-modal-overlay');
+    loadedTabs.delete('users');
+    loadTabData('users');
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Update User';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DELETE — shared confirm modal for all three tabs
+══════════════════════════════════════════════════════════════════ */
+const DELETE_META = {
+  mandal:  { url: id => `/api/admin/mandals/${id}`,  label: 'this Mandal',  reloadTab: 'mandal'  },
+  village: { url: id => `/api/admin/villages/${id}`, label: 'this Village', reloadTab: 'village' },
+  users:   { url: id => `/api/admin/users/${id}`,    label: 'this User',    reloadTab: 'users'   },
+};
+let pendingDelete = null;
+
+function openDeleteModal(tab, id) {
+  pendingDelete = { tab, id };
+  document.getElementById('delete-modal-message').textContent =
+    `Are you sure you want to delete ${DELETE_META[tab].label}? This action cannot be undone.`;
+  openModal('delete-modal-overlay');
+}
+
+function confirmDelete() {
+  if (!pendingDelete) return;
+  const { tab, id } = pendingDelete;
+  const meta = DELETE_META[tab];
+
+  const btn = document.getElementById('delete-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  fetch(meta.url(id), {
+    method: 'DELETE',
+    headers: {
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to delete.', true);
+      return;
+    }
+    showToast(data.message || '✔ Deleted successfully.');
+    closeModal('delete-modal-overlay');
+    loadedTabs.delete(meta.reloadTab);
+    loadTabData(meta.reloadTab);
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+    pendingDelete = null;
   });
 }
 

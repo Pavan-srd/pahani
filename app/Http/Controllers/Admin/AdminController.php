@@ -88,7 +88,8 @@ class AdminController extends Controller
      */
     public function users(Request $request)
     {
-        $users = User::query()
+        $users = User::with('getMandal')
+            ->where('is_admin', false)
             ->when($request->filled('search'), function ($q) use ($request) {
                 $q->where(function ($sub) use ($request) {
                     $sub->where('name', 'like', '%' . $request->search . '%')
@@ -102,7 +103,7 @@ class AdminController extends Controller
                 'name'      => $u->name,
                 'email'     => $u->email,
                 'role'      => $u->role ?? 'User',
-                'is_active' => (bool) ($u->is_active ?? true),
+                'mandal'    => $u->getMandal?->name
             ]);
 
         return response()->json($users);
@@ -185,6 +186,165 @@ class AdminController extends Controller
                 'is_active'   => (bool) $village->is_active,
             ],
         ], 201);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       EDIT (prefill) — return a single record for the edit modal
+    ══════════════════════════════════════════════════════════════ */
+
+    /**
+     * GET /api/admin/mandals/{mandal}/edit
+     */
+    public function editMandal(Mandal $mandal)
+    {
+        return response()->json([
+            'id'   => $mandal->id,
+            'name' => $mandal->name,
+            'slug' => $mandal->slug,
+        ]);
+    }
+
+    /**
+     * GET /api/admin/villages/{village}/edit
+     */
+    public function editVillage(Village $village)
+    {
+        return response()->json([
+            'id'        => $village->id,
+            'name'      => $village->name,
+            'slug'      => $village->slug,
+            'mandal_id' => $village->mandal_id,
+        ]);
+    }
+
+    /**
+     * GET /api/admin/users/{user}/edit
+     */
+    public function editUser(User $user)
+    {
+        return response()->json([
+            'id'    => $user->id,
+            'name'  => $user->name,
+            'email' => $user->email,
+            'role'  => $user->role ?? 'User',
+        ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       UPDATE — one per tab
+    ══════════════════════════════════════════════════════════════ */
+
+    /**
+     * PUT /api/admin/mandals/{mandal}
+     * Body: { name: string }
+     */
+    public function updateMandal(Request $request, Mandal $mandal)
+    {
+        $validated = $request->validate([
+            'name' => [
+                'required', 'string', 'max:255',
+                Rule::unique('mandals', 'name')->ignore($mandal->id),
+            ],
+        ], [
+            'name.unique' => 'A mandal with this name already exists.',
+        ]);
+
+        $mandal->update([
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mandal updated successfully.',
+            'mandal'  => [
+                'id'             => $mandal->id,
+                'name'           => $mandal->name,
+                'slug'           => $mandal->slug,
+                'villages_count' => $mandal->villages()->count(),
+                'is_active'      => (bool) $mandal->is_active,
+            ],
+        ]);
+    }
+
+    /**
+     * PUT /api/admin/villages/{village}
+     * Body: { mandal_id: int, name: string }
+     */
+    public function updateVillage(Request $request, Village $village)
+    {
+        $validated = $request->validate([
+            'mandal_id' => ['required', 'integer', 'exists:mandals,id'],
+            'name'      => [
+                'required',
+                'string',
+                'max:255',
+                // Unique per-mandal, ignoring this village's own row
+                Rule::unique('villages', 'name')
+                    ->where(fn ($query) => $query->where('mandal_id', $request->input('mandal_id')))
+                    ->ignore($village->id),
+            ],
+        ], [
+            'name.unique' => 'A village with this name already exists under the selected mandal.',
+        ]);
+
+        $village->update([
+            'mandal_id' => $validated['mandal_id'],
+            'name'      => $validated['name'],
+            'slug'      => Str::slug($validated['name']),
+        ]);
+
+        $village->load('mandal');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Village updated successfully.',
+            'village' => [
+                'id'          => $village->id,
+                'name'        => $village->name,
+                'slug'        => $village->slug,
+                'mandal_id'   => $village->mandal_id,
+                'mandal_name' => $village->mandal->name ?? null,
+                'is_active'   => (bool) $village->is_active,
+            ],
+        ]);
+    }
+
+    /**
+     * PUT /api/admin/users/{user}
+     * Body: { name: string, email: string, role: string, password?: string }
+     */
+    public function updateUser(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => [
+                'required', 'string', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+        ], [
+            'email.unique' => 'A user with this email already exists.',
+        ]);
+
+        $user->name  = $validated['name'];
+        $user->email = $validated['email'];
+        if (! empty($validated['password'])) {
+            $user->password = bcrypt($validated['password']);
+        }
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User updated successfully.',
+            'user'    => [
+                'id'        => $user->id,
+                'name'      => $user->name,
+                'email'     => $user->email,
+                'role'      => $user->role ?? 'User',
+                'is_active' => (bool) ($user->is_active ?? true),
+            ],
+        ]);
     }
 
     /* ══════════════════════════════════════════════════════════════

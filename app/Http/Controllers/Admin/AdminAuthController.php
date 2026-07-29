@@ -52,7 +52,7 @@ class AdminAuthController extends Controller
                 ->onlyInput('email');
         }
 
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect()->route('admin.dashboard');
     }
 
     /**

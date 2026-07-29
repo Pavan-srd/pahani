@@ -51,6 +51,7 @@ Route::post('/admin/logout', [AdminAuthController::class, 'logout'])->name('admi
 | admin → logged out + admin.login with an error; otherwise → allowed.
 */
 Route::middleware(['is_admin'])->group(function () {
+    Route::get('/admin', [AdminController::class, 'dashboard'])->name('admin.dashboard');
     Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
     Route::get('/admin/profile', [AdminController::class, 'profile'])->name('admin.profile');
 
@@ -67,6 +68,16 @@ Route::middleware(['is_admin'])->group(function () {
     Route::patch('/api/admin/mandals/{mandal}/toggle-status', [AdminController::class, 'toggleMandalStatus']);
     Route::patch('/api/admin/villages/{village}/toggle-status', [AdminController::class, 'toggleVillageStatus']);
     Route::patch('/api/admin/users/{user}/toggle-status', [AdminController::class, 'toggleUserStatus']);
+
+    // Edit (prefill for modal)
+    Route::get('/api/admin/mandals/{mandal}/edit', [AdminController::class, 'editMandal']);
+    Route::get('/api/admin/villages/{village}/edit', [AdminController::class, 'editVillage']);
+    Route::get('/api/admin/users/{user}/edit', [AdminController::class, 'editUser']);
+
+    // Update
+    Route::put('/api/admin/mandals/{mandal}', [AdminController::class, 'updateMandal']);
+    Route::put('/api/admin/villages/{village}', [AdminController::class, 'updateVillage']);
+    Route::put('/api/admin/users/{user}', [AdminController::class, 'updateUser']);
 
     // Delete
     Route::delete('/api/admin/mandals/{mandal}', [AdminController::class, 'destroyMandal']);

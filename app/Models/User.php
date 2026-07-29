@@ -48,4 +48,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function getMandal()
+    {
+        return $this->belongsTo(Mandal::class, 'mandal_id');
+    }
 }
