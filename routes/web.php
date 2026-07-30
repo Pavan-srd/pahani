@@ -28,6 +28,8 @@ Route::middleware('auth')->group(function () {
 
     // AJAX: existing pahani records for a village
     Route::get('/api/villages/{village}/pahanis', [PahaniController::class, 'apiVillagePahanis']);
+
+    
 });
 
 /*
@@ -83,6 +85,29 @@ Route::middleware(['is_admin'])->group(function () {
     Route::delete('/api/admin/mandals/{mandal}', [AdminController::class, 'destroyMandal']);
     Route::delete('/api/admin/villages/{village}', [AdminController::class, 'destroyVillage']);
     Route::delete('/api/admin/users/{user}', [AdminController::class, 'destroyUser']);
+
+    Route::prefix('admin/pahani-management')->name('admin.pahani-management.')->group(function () {
+        
+        // List all PDFs (admin view)
+        Route::get('/', [\App\Http\Controllers\Admin\PahaniManagementController::class, 'index'])
+            ->name('index');
+
+        // Show details of a single PDF
+        Route::get('/{pahani}', [\App\Http\Controllers\Admin\PahaniManagementController::class, 'show'])
+            ->name('show');
+
+        // Delete a single PDF
+        Route::delete('/{pahani}', [\App\Http\Controllers\Admin\PahaniManagementController::class, 'destroy'])
+            ->name('destroy');
+
+        // Bulk delete PDFs
+        Route::post('/bulk-delete', [\App\Http\Controllers\Admin\PahaniManagementController::class, 'bulkDelete'])
+            ->name('bulk-delete');
+
+        // Export PDFs list as CSV
+        Route::get('/export', [\App\Http\Controllers\Admin\PahaniManagementController::class, 'export'])
+            ->name('export');
+    });
 });
 
 require __DIR__.'/auth.php';
