@@ -67,4 +67,9 @@ class User extends Authenticatable
             'mandal_id'          // related foreign key on pivot
         )->withTimestamps();
     }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
 }

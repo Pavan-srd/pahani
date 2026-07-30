@@ -44,6 +44,22 @@ Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name(
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
 Route::post('/admin/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
 
+Route::middleware('guest')->group(function () {
+ 
+    // Forgot Password Routes
+    Route::get('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'request'])
+        ->name('password.request');
+ 
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'email'])
+        ->name('password.email');
+ 
+    // Reset Password Routes
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])
+        ->name('password.reset');
+ 
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'update'])
+        ->name('password.update');
+});
 /*
 |--------------------------------------------------------------------------
 | Protected Admin Routes

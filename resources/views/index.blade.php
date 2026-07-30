@@ -193,7 +193,7 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District ({{ auth()->user()?->name }}, Designation)
+      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District ({{ auth()->user()?->name }}, {{auth()->user()->getMandal?->name}})
     </div>
   </div>
 
