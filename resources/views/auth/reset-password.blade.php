@@ -88,7 +88,7 @@
       <div class="emblem">🏠</div>
       <div class="gov-title-block">
         <div class="dept-name">Land Record Digitalization</div>
-        <div class="dept-sub">Housing Scheme Administration Portal</div>
+        <div class="dept-sub">Revenue Department Sangareddy District</div>
       </div>
     </div>
     <div class="gov-subtitle-bar">

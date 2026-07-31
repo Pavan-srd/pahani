@@ -98,7 +98,7 @@
   <div class="footer">
     <p>
       <strong>Land Record Digitalization System</strong><br>
-      Housing Scheme Administration<br>
+      Revenue Department Sangareddy District<br>
       Sangareddy, Telangana
     </p>
     <p style="margin-top:15px;border-top:1px solid rgba(255,255,255,0.2);padding-top:10px;font-size:11px">
