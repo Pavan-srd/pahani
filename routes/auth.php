@@ -12,16 +12,35 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
-
-    Route::post('register', [RegisteredUserController::class, 'store']);
-
-    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+    // Show login form (same as before)
+    Route::get('login', [\App\Http\Controllers\Auth\OtpLoginController::class, 'showLogin'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    // Send OTP after email/password verification (instead of direct login)
+    Route::post('login', [\App\Http\Controllers\Auth\OtpLoginController::class, 'sendOtp'])
+        ->name('login.sendOtp');
 
+    // Show OTP verification page
+    Route::get('verify-otp', [\App\Http\Controllers\Auth\OtpLoginController::class, 'showOtpVerify'])
+        ->name('otp.verify');
+
+    // Verify OTP and log in
+    Route::post('verify-otp', [\App\Http\Controllers\Auth\OtpLoginController::class, 'verifyOtp'])
+        ->name('otp.verify.store');
+
+    // Resend OTP
+    Route::post('resend-otp', [\App\Http\Controllers\Auth\OtpLoginController::class, 'resendOtp'])
+        ->name('otp.resend');
+
+    // Keep existing password reset routes
+    Route::get('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'request'])->name('password.request');
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'email'])->name('password.email');
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])->name('password.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'update'])->name('password.update');
+
+    // Register routes (if you have them)
+    Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store']);
 });
 
 Route::middleware('auth')->group(function () {
