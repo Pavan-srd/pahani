@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Mandal;
 use App\Models\User;
+use App\Models\WorkingOffice;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,8 +22,8 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        $mandals = Mandal::all();
-        return view('auth.register', compact('mandals'));
+        $workingOffices = WorkingOffice::all();
+        return view('auth.register', compact('workingOffices'));
     }
 
     /**

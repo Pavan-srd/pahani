@@ -149,12 +149,12 @@
           </div>
 
           <div class="field-group">
-            <label class="field-label" for="mandal_id">Working Mandal <span class="req">*</span></label>
-            <select id="mandal_id" name="mandal_id" required>
-              <option value="" disabled {{ old('mandal_id') ? '' : 'selected' }}>Select your mandal</option>
-              @foreach ($mandals as $mandal)
-                <option value="{{ $mandal->id }}" {{ old('mandal_id') == $mandal->id ? 'selected' : '' }}>
-                  {{ $mandal->name }}
+            <label class="field-label" for="working_office_id">Working Office <span class="req">*</span></label>
+            <select id="working_office_id" name="working_office_id" required>
+              <option value="" disabled {{ old('working_office_id') ? '' : 'selected' }}>Select your working office</option>
+              @foreach ($workingOffices as $office)
+                <option value="{{ $office->id }}" {{ old('working_office_id') == $office->id ? 'selected' : '' }}>
+                  {{ $office->name }}
                 </option>
               @endforeach
             </select>
