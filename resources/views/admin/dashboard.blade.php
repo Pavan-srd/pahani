@@ -107,6 +107,15 @@
     .tab-panel{display:none}
     .tab-panel.active{display:block}
 
+    /* ══ PAGINATION ══ */
+    .pagination-container{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid #d0dde8;background:#f7fbfd;flex-wrap:wrap;gap:10px}
+    .pagination-info{font-size:11px;color:#666}
+    .pagination-nav{display:flex;align-items:center;gap:4px}
+    .page-btn{background:#eaf2f8;color:#154360;border:1px solid #c8dce9;padding:5px 10px;font-size:10px;font-weight:bold;cursor:pointer;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;transition:background 0.15s}
+    .page-btn:hover:not(:disabled){background:#d6eaf8}
+    .page-btn:disabled{opacity:0.5;cursor:not-allowed}
+    .page-btn.active{background:#154360;color:white;border-color:#154360}
+
     /* ══ OVERLAY (mobile sidebar) ══ */
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:190}
     .sidebar-overlay.show{display:block}
@@ -180,6 +189,7 @@
       .toolbar{flex-direction:column;align-items:stretch}
       .data-table{font-size:10px}
       .data-table th,.data-table td{padding:6px}
+      .pagination-container{flex-direction:column;align-items:stretch;gap:8px}
     }
   </style>
 </head>
@@ -207,6 +217,9 @@
         </a>
         <a class="sb-item" data-tab="village" onclick="switchTab('village', this); return false;" href="#">
           <span class="sb-icon">🏘️</span> Village
+        </a>
+        <a class="sb-item" data-tab="working_office" onclick="switchTab('working_office', this); return false;" href="#">
+          <span class="sb-icon">🏢</span> Working Office
         </a>
 
         <div class="nav-section-label">Access Control</div>
@@ -283,7 +296,7 @@
 
           <div class="toolbar">
             <div class="search-box">
-              🔎 <input type="text" id="mandal-search" placeholder="Search Mandal by name…" oninput="filterTable('mandal-tbody', this.value)">
+              🔎 <input type="text" id="mandal-search" placeholder="Search Mandal by name…" oninput="filterAndPaginate('mandal')">
             </div>
             <button class="btn-primary-sm" onclick="openAddMandalModal()">
               + Add Mandal
@@ -308,6 +321,12 @@
             <div class="empty-state" id="mandal-empty" style="display:none">
               <div class="es-icon">🏛️</div> No mandals found.
             </div>
+            <div class="pagination-container" id="mandal-pagination" style="display:none">
+              <div class="pagination-info">
+                Showing <strong id="mandal-info-from">1</strong>–<strong id="mandal-info-to">10</strong> of <strong id="mandal-info-total">0</strong>
+              </div>
+              <div class="pagination-nav" id="mandal-nav"></div>
+            </div>
           </div>
         </div>
 
@@ -320,7 +339,7 @@
 
           <div class="toolbar">
             <div class="search-box">
-              🔎 <input type="text" id="village-search" placeholder="Search Village by name…" oninput="filterTable('village-tbody', this.value)">
+              🔎 <input type="text" id="village-search" placeholder="Search Village by name…" oninput="filterAndPaginate('village')">
             </div>
             <button class="btn-primary-sm" onclick="openAddVillageModal()">
               + Add Village
@@ -345,21 +364,71 @@
             <div class="empty-state" id="village-empty" style="display:none">
               <div class="es-icon">🏘️</div> No villages found.
             </div>
+            <div class="pagination-container" id="village-pagination" style="display:none">
+              <div class="pagination-info">
+                Showing <strong id="village-info-from">1</strong>–<strong id="village-info-to">10</strong> of <strong id="village-info-total">0</strong>
+              </div>
+              <div class="pagination-nav" id="village-nav"></div>
+            </div>
           </div>
         </div>
 
-        {{-- ═══ TAB: USERS LIST ═══ --}}
-        <div class="tab-panel" id="tab-users">
+        {{-- ═══ TAB: WORKING OFFICE ═══ --}}
+        <div class="tab-panel" id="tab-working_office">
           <div class="page-heading">
-            <h2>👤 Users List</h2>
-            <div class="ph-sub">Manage admin and staff user accounts</div>
+            <h2>🏢 Working Office Management</h2>
+            <div class="ph-sub">Add, edit, and manage working offices</div>
           </div>
 
           <div class="toolbar">
             <div class="search-box">
-              🔎 <input type="text" id="users-search" placeholder="Search by name or email…" oninput="filterTable('users-tbody', this.value)">
+              🔎 <input type="text" id="working_office-search" placeholder="Search Working Office by name…" oninput="filterAndPaginate('working_office')">
+            </div>
+            <button class="btn-primary-sm" onclick="openAddWorkingOfficeModal()">
+              + Add Working Office
+            </button>
+          </div>
+
+          <div class="section-card">
+            <div class="loading-bar" id="working_office-loading"><div class="spinner"></div> Loading working offices…</div>
+            <table class="data-table" id="working_office-table" style="display:none">
+              <thead>
+                <tr>
+                  <th style="width:6%">#</th>
+                  <th>Office Name</th>
+                  <th>Slug</th>
+                  <th style="width:20%">Created Date</th>
+                  <th style="width:12%">Status</th>
+                  <th style="width:12%;text-align:center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="working_office-tbody"></tbody>
+            </table>
+            <div class="empty-state" id="working_office-empty" style="display:none">
+              <div class="es-icon">🏢</div> No working offices found.
+            </div>
+            <div class="pagination-container" id="working_office-pagination" style="display:none">
+              <div class="pagination-info">
+                Showing <strong id="working_office-info-from">1</strong>–<strong id="working_office-info-to">10</strong> of <strong id="working_office-info-total">0</strong>
+              </div>
+              <div class="pagination-nav" id="working_office-nav"></div>
             </div>
           </div>
+        </div>
+
+        {{-- ═══ TAB: USERS ═══ --}}
+        <div class="tab-panel" id="tab-users">
+          <div class="page-heading">
+            <h2>👤 Users Management</h2>
+            <div class="ph-sub">Manage user accounts and permissions</div>
+          </div>
+
+          <div class="toolbar">
+            <div class="search-box">
+              🔎 <input type="text" id="users-search" placeholder="Search User by name or email…" oninput="filterAndPaginate('users')">
+            </div>
+          </div>
+
           <div class="section-card">
             <div class="loading-bar" id="users-loading"><div class="spinner"></div> Loading users…</div>
             <table class="data-table" id="users-table" style="display:none">
@@ -368,7 +437,8 @@
                   <th style="width:6%">#</th>
                   <th>Name</th>
                   <th>Email</th>
-                  <th style="width:14%">Working Mandal</th>
+                  <th>Working Office</th>
+                  <th style="width:12%">Status</th>
                   <th style="width:12%;text-align:center">Actions</th>
                 </tr>
               </thead>
@@ -377,27 +447,34 @@
             <div class="empty-state" id="users-empty" style="display:none">
               <div class="es-icon">👤</div> No users found.
             </div>
+            <div class="pagination-container" id="users-pagination" style="display:none">
+              <div class="pagination-info">
+                Showing <strong id="users-info-from">1</strong>–<strong id="users-info-to">10</strong> of <strong id="users-info-total">0</strong>
+              </div>
+              <div class="pagination-nav" id="users-nav"></div>
+            </div>
           </div>
         </div>
 
-      </div>{{-- /content --}}
-    </div>{{-- /main-col --}}
-  </div>{{-- /app-shell --}}
+      </div>
+
+    </div>
+
+  </div>
 
   {{-- ══════════════ ADD MANDAL MODAL ══════════════ --}}
   <div class="modal-overlay" id="mandal-modal-overlay" onclick="if(event.target===this) closeModal('mandal-modal-overlay')">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>🏛️ Add Mandal</h3>
+        <h3>+ Add Mandal</h3>
         <button class="modal-close" onclick="closeModal('mandal-modal-overlay')">✕</button>
       </div>
       <form id="mandal-add-form" onsubmit="submitMandalForm(event)">
         <div class="modal-body">
           <div class="default-status-note">✔ New mandals are added as <strong>Active</strong> by default.</div>
-
           <div class="form-field" id="mandal-name-field">
             <label for="mandal-name-input">Mandal Name <span class="req">*</span></label>
-            <input type="text" id="mandal-name-input" name="name" placeholder="e.g. Sangareddy" autocomplete="off">
+            <input type="text" id="mandal-name-input" name="name" placeholder="e.g. Rangareddy" autocomplete="off">
             <div class="field-error" id="mandal-name-error"></div>
           </div>
         </div>
@@ -413,7 +490,7 @@
   <div class="modal-overlay" id="village-modal-overlay" onclick="if(event.target===this) closeModal('village-modal-overlay')">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>🏘️ Add Village</h3>
+        <h3>+ Add Village</h3>
         <button class="modal-close" onclick="closeModal('village-modal-overlay')">✕</button>
       </div>
       <form id="village-add-form" onsubmit="submitVillageForm(event)">
@@ -437,6 +514,30 @@
         <div class="modal-footer">
           <button type="button" class="btn-secondary-sm" onclick="closeModal('village-modal-overlay')">Cancel</button>
           <button type="submit" class="btn-primary-sm" id="village-submit-btn">Save Village</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{-- ══════════════ ADD WORKING OFFICE MODAL ══════════════ --}}
+  <div class="modal-overlay" id="working_office-modal-overlay" onclick="if(event.target===this) closeModal('working_office-modal-overlay')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>+ Add Working Office</h3>
+        <button class="modal-close" onclick="closeModal('working_office-modal-overlay')">✕</button>
+      </div>
+      <form id="working_office-add-form" onsubmit="submitWorkingOfficeForm(event)">
+        <div class="modal-body">
+          <div class="default-status-note">✔ New offices are added as <strong>Active</strong> by default.</div>
+          <div class="form-field" id="working_office-name-field">
+            <label for="working_office-name-input">Office Name <span class="req">*</span></label>
+            <input type="text" id="working_office-name-input" name="name" placeholder="e.g. District Revenue Office" autocomplete="off">
+            <div class="field-error" id="working_office-name-error"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('working_office-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="working_office-submit-btn">Save Office</button>
         </div>
       </form>
     </div>
@@ -498,6 +599,30 @@
     </div>
   </div>
 
+  {{-- ══════════════ EDIT WORKING OFFICE MODAL ══════════════ --}}
+  <div class="modal-overlay" id="working_office-edit-modal-overlay" onclick="if(event.target===this) closeModal('working_office-edit-modal-overlay')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✎ Edit Working Office</h3>
+        <button class="modal-close" onclick="closeModal('working_office-edit-modal-overlay')">✕</button>
+      </div>
+      <form id="working_office-edit-form" onsubmit="submitEditWorkingOfficeForm(event)">
+        <div class="modal-body">
+          <input type="hidden" id="working_office-edit-id">
+          <div class="form-field" id="working_office-edit-name-field">
+            <label for="working_office-edit-name-input">Office Name <span class="req">*</span></label>
+            <input type="text" id="working_office-edit-name-input" name="name" autocomplete="off">
+            <div class="field-error" id="working_office-edit-name-error"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('working_office-edit-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="working_office-edit-submit-btn">Update Office</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   {{-- ══════════════ EDIT USER MODAL ══════════════ --}}
   <div class="modal-overlay" id="user-edit-modal-overlay" onclick="if(event.target===this) closeModal('user-edit-modal-overlay')">
     <div class="modal-box">
@@ -508,19 +633,38 @@
       <form id="user-edit-form" onsubmit="submitEditUserForm(event)">
         <div class="modal-body">
           <input type="hidden" id="user-edit-id">
+          
           <div class="form-field" id="user-edit-name-field">
             <label for="user-edit-name-input">Name <span class="req">*</span></label>
             <input type="text" id="user-edit-name-input" name="name" autocomplete="off">
             <div class="field-error" id="user-edit-name-error"></div>
           </div>
-  
+
           <div class="form-field" id="user-edit-email-field">
             <label for="user-edit-email-input">Email <span class="req">*</span></label>
             <input type="text" id="user-edit-email-input" name="email" autocomplete="off">
             <div class="field-error" id="user-edit-email-error"></div>
           </div>
-  
-          <!-- ══════════════ MANDALS MULTI-SELECT ══════════════ -->
+
+          <!-- NEW: Working Office Dropdown -->
+          <div class="form-field" id="user-edit-working-office-field">
+            <label for="user-edit-working-office-select">Working Office <span class="req">*</span></label>
+            <select id="user-edit-working-office-select" name="working_office_id">
+              <option value="">— Select Working Office —</option>
+            </select>
+            <div class="field-error" id="user-edit-working-office-error"></div>
+          </div>
+
+          <!-- NEW: Status Toggle -->
+          <div class="form-field" id="user-edit-status-field">
+            <label for="user-edit-status-checkbox">
+              <input type="checkbox" id="user-edit-status-checkbox" name="status" style="width:16px;height:16px;cursor:pointer;accent-color:#154360;">
+              <span style="margin-left:8px;">Active</span>
+            </label>
+            <div class="field-error" id="user-edit-status-error"></div>
+          </div>
+
+          <!-- Mandals Assignment -->
           <div class="form-field" id="user-edit-mandals-field">
             <label>Assign Mandals</label>
             <div id="user-edit-mandals-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; border: 1px solid #b0c4d8; border-radius: 2px; padding: 10px; background: #f8fbfd;">
@@ -528,7 +672,7 @@
             </div>
             <div class="field-error" id="user-edit-mandals-error"></div>
           </div>
-  
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary-sm" onclick="closeModal('user-edit-modal-overlay')">Cancel</button>
@@ -557,12 +701,24 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════════════
+   PAGINATION STATE
+══════════════════════════════════════════════════════════════════ */
+const PAGINATION_SIZE = 10;
+const paginationState = {
+  mandal: { currentPage: 1, totalPages: 1, allData: [], filteredData: [] },
+  village: { currentPage: 1, totalPages: 1, allData: [], filteredData: [] },
+  working_office: { currentPage: 1, totalPages: 1, allData: [], filteredData: [] },
+  users: { currentPage: 1, totalPages: 1, allData: [], filteredData: [] },
+};
+
+/* ══════════════════════════════════════════════════════════════════
    TAB SWITCHING
 ══════════════════════════════════════════════════════════════════ */
 const TAB_META = {
-  mandal:  { title: 'Mandal Management',  crumb: 'Admin › Master Data › Mandal',  endpoint: '/api/admin/mandals' },
-  village: { title: 'Village Management', crumb: 'Admin › Master Data › Village', endpoint: '/api/admin/villages' },
-  users:   { title: 'Users List',         crumb: 'Admin › Access Control › Users', endpoint: '/api/admin/users' },
+  mandal:  { title: 'Mandal Management',         crumb: 'Admin › Master Data › Mandal',         endpoint: '/api/admin/mandals' },
+  village: { title: 'Village Management',        crumb: 'Admin › Master Data › Village',        endpoint: '/api/admin/villages' },
+  working_office: { title: 'Working Office Management', crumb: 'Admin › Master Data › Working Office', endpoint: '/api/admin/working-offices' },
+  users:   { title: 'Users List',                crumb: 'Admin › Access Control › Users',       endpoint: '/api/admin/users' },
 };
 const loadedTabs = new Set();
 
@@ -584,7 +740,7 @@ function switchTab(tab, el) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   DATA LOADING (adjust endpoints/response shape to match your API)
+   DATA LOADING WITH PAGINATION
 ══════════════════════════════════════════════════════════════════ */
 function loadTabData(tab) {
   const meta = TAB_META[tab];
@@ -600,30 +756,45 @@ function loadTabData(tab) {
     .then(r => r.json())
     .then(data => {
       loadedTabs.add(tab);
-      renderTab(tab, data);
+      paginationState[tab].allData = Array.isArray(data) ? data : (data.data || []);
+      paginationState[tab].filteredData = [...paginationState[tab].allData];
+      paginationState[tab].currentPage = 1;
+      paginationState[tab].totalPages = Math.ceil(paginationState[tab].filteredData.length / PAGINATION_SIZE) || 1;
+      renderTab(tab);
+      updatePagination(tab);
     })
     .catch(() => showToast(`Failed to load ${tab} data.`, true))
     .finally(() => loadingEl.classList.remove('show'));
 }
 
-function renderTab(tab, rows) {
+function renderTab(tab) {
   const tbody   = document.getElementById(tab + '-tbody');
   const tableEl = document.getElementById(tab + '-table');
   const emptyEl = document.getElementById(tab + '-empty');
+  const state   = paginationState[tab];
+
   tbody.innerHTML = '';
 
-  if (!rows || rows.length === 0) {
+  // Get page data
+  const start = (state.currentPage - 1) * PAGINATION_SIZE;
+  const end = start + PAGINATION_SIZE;
+  const pageData = state.filteredData.slice(start, end);
+
+  if (state.filteredData.length === 0) {
     emptyEl.style.display = 'block';
+    tableEl.style.display = 'none';
     return;
   }
+
   tableEl.style.display = 'table';
 
-  rows.forEach((row, i) => {
+  pageData.forEach((row, i) => {
     const tr = document.createElement('tr');
+    const globalIndex = start + i + 1;
 
     if (tab === 'mandal') {
       tr.innerHTML = `
-        <td>${i + 1}</td>
+        <td>${globalIndex}</td>
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.slug)}</td>
         <td>${row.villages_count ?? 0}</td>
@@ -631,18 +802,27 @@ function renderTab(tab, rows) {
         <td style="text-align:center">${rowActions('mandal', row.id)}</td>`;
     } else if (tab === 'village') {
       tr.innerHTML = `
-        <td>${i + 1}</td>
+        <td>${globalIndex}</td>
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.slug)}</td>
         <td>${escapeHtml(row.mandal_name ?? '—')}</td>
         <td>${statusPill(row.is_active)}</td>
         <td style="text-align:center">${rowActions('village', row.id)}</td>`;
+    } else if (tab === 'working_office') {
+      tr.innerHTML = `
+        <td>${globalIndex}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${escapeHtml(row.slug)}</td>
+        <td>${formatDate(row.created_at)}</td>
+        <td>${statusPill(row.is_active)}</td>
+        <td style="text-align:center">${rowActions('working_office', row.id)}</td>`;
     } else if (tab === 'users') {
       tr.innerHTML = `
-        <td>${i + 1}</td>
+        <td>${globalIndex}</td>
         <td>${escapeHtml(row.name)}</td>
         <td>${escapeHtml(row.email)}</td>
-        <td><span class="role-pill">${escapeHtml(row.mandal ?? '-')}</span></td>
+        <td>${escapeHtml(row.working_office_name ?? '—')}</td>
+        <td>${row.status ? '<span class="pill pill-active">✔ Active</span>' : '<span class="pill pill-inactive">— Inactive</span>'}</td>
         <td style="text-align:center">${rowActions('users', row.id)}</td>`;
     }
     tbody.appendChild(tr);
@@ -663,17 +843,97 @@ function rowActions(tab, id) {
     </div>`;
 }
 
-function filterTable(tbodyId, query) {
-  const q = query.trim().toLowerCase();
-  document.querySelectorAll(`#${tbodyId} tr`).forEach(tr => {
-    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
+function formatDate(dateString) {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-IN');
 }
 
 function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str ?? '';
   return d.innerHTML;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PAGINATION CONTROLS
+══════════════════════════════════════════════════════════════════ */
+function updatePagination(tab) {
+  const state = paginationState[tab];
+  const paginationEl = document.getElementById(tab + '-pagination');
+  const navEl = document.getElementById(tab + '-nav');
+
+  if (state.filteredData.length === 0) {
+    paginationEl.style.display = 'none';
+    return;
+  }
+
+  paginationEl.style.display = 'flex';
+
+  const start = (state.currentPage - 1) * PAGINATION_SIZE + 1;
+  const end = Math.min(start + PAGINATION_SIZE - 1, state.filteredData.length);
+
+  document.getElementById(tab + '-info-from').textContent = start;
+  document.getElementById(tab + '-info-to').textContent = end;
+  document.getElementById(tab + '-info-total').textContent = state.filteredData.length;
+
+  navEl.innerHTML = '';
+  
+  // Previous button
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'page-btn';
+  prevBtn.textContent = '← Prev';
+  prevBtn.disabled = state.currentPage === 1;
+  prevBtn.onclick = () => goToPage(tab, state.currentPage - 1);
+  navEl.appendChild(prevBtn);
+
+  // Page numbers
+  for (let i = 1; i <= state.totalPages; i++) {
+    const pageBtn = document.createElement('button');
+    pageBtn.className = 'page-btn' + (i === state.currentPage ? ' active' : '');
+    pageBtn.textContent = i;
+    pageBtn.onclick = () => goToPage(tab, i);
+    navEl.appendChild(pageBtn);
+  }
+
+  // Next button
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'page-btn';
+  nextBtn.textContent = 'Next →';
+  nextBtn.disabled = state.currentPage === state.totalPages;
+  nextBtn.onclick = () => goToPage(tab, state.currentPage + 1);
+  navEl.appendChild(nextBtn);
+}
+
+function goToPage(tab, page) {
+  const state = paginationState[tab];
+  if (page < 1 || page > state.totalPages) return;
+  state.currentPage = page;
+  renderTab(tab);
+  updatePagination(tab);
+}
+
+function filterAndPaginate(tab) {
+  const searchInput = document.getElementById(tab + '-search');
+  const query = searchInput.value.trim().toLowerCase();
+  const state = paginationState[tab];
+
+  // Filter data
+  if (query === '') {
+    state.filteredData = [...state.allData];
+  } else {
+    state.filteredData = state.allData.filter(row => {
+      const searchableText = JSON.stringify(row).toLowerCase();
+      return searchableText.includes(query);
+    });
+  }
+
+  // Reset to page 1 and recalculate total pages
+  state.currentPage = 1;
+  state.totalPages = Math.ceil(state.filteredData.length / PAGINATION_SIZE) || 1;
+
+  renderTab(tab);
+  updatePagination(tab);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -803,7 +1063,8 @@ function populateMandalDropdown(selectId, selectedId = null) {
     .then(r => r.json())
     .then(mandals => {
       sel.innerHTML = '<option value="">— Select Mandal —</option>';
-      mandals.forEach(m => {
+      const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
+      data.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
         opt.textContent = m.name;
@@ -879,12 +1140,72 @@ function submitVillageForm(e) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   ADD WORKING OFFICE
+══════════════════════════════════════════════════════════════════ */
+function openAddWorkingOfficeModal() {
+  document.getElementById('working_office-add-form').reset();
+  clearFieldError('working_office-name-field', 'working_office-name-error');
+  openModal('working_office-modal-overlay');
+  document.getElementById('working_office-name-input').focus();
+}
+
+function submitWorkingOfficeForm(e) {
+  e.preventDefault();
+  clearFieldError('working_office-name-field', 'working_office-name-error');
+
+  const name = document.getElementById('working_office-name-input').value.trim();
+  if (!name) {
+    setFieldError('working_office-name-field', 'working_office-name-error', 'Office name is required.');
+    return;
+  }
+
+  const btn = document.getElementById('working_office-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  fetch('/api/admin/working-offices', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ name }),
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+
+    if (r.status === 422) {
+      const msg = data.errors?.name?.[0] || data.message || 'Validation failed.';
+      setFieldError('working_office-name-field', 'working_office-name-error', msg);
+      return;
+    }
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to add working office.', true);
+      return;
+    }
+
+    showToast('✔ Working office added successfully.');
+    closeModal('working_office-modal-overlay');
+    loadedTabs.delete('working_office');
+    loadTabData('working_office');
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Save Office';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
    EDIT — shared config
 ══════════════════════════════════════════════════════════════════ */
 const EDIT_META = {
-  mandal:  { editUrl: id => `/api/admin/mandals/${id}/edit`,  updateUrl: id => `/api/admin/mandals/${id}`,  reloadTab: 'mandal'  },
-  village: { editUrl: id => `/api/admin/villages/${id}/edit`, updateUrl: id => `/api/admin/villages/${id}`, reloadTab: 'village' },
-  users:   { editUrl: id => `/api/admin/users/${id}/edit`,    updateUrl: id => `/api/admin/users/${id}`,    reloadTab: 'users'   },
+  mandal:  { editUrl: id => `/api/admin/mandals/${id}/edit`,              updateUrl: id => `/api/admin/mandals/${id}`,              reloadTab: 'mandal'  },
+  village: { editUrl: id => `/api/admin/villages/${id}/edit`,             updateUrl: id => `/api/admin/villages/${id}`,             reloadTab: 'village' },
+  working_office: { editUrl: id => `/api/admin/working-offices/${id}/edit`, updateUrl: id => `/api/admin/working-offices/${id}`, reloadTab: 'working_office' },
+  users:   { editUrl: id => `/api/admin/users/${id}/edit`,                updateUrl: id => `/api/admin/users/${id}`,                reloadTab: 'users'   },
 };
  
 function openEditModal(tab, id) {
@@ -903,77 +1224,119 @@ function openEditModal(tab, id) {
         clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
         clearFieldError('village-edit-name-field', 'village-edit-name-error');
         document.getElementById('village-edit-id').value = record.id;
-        document.getElementById('village-edit-name-input').value = record.name;
         populateMandalDropdown('village-edit-mandal-select', record.mandal_id);
+        document.getElementById('village-edit-name-input').value = record.name;
         openModal('village-edit-modal-overlay');
+      } else if (tab === 'working_office') {
+        clearFieldError('working_office-edit-name-field', 'working_office-edit-name-error');
+        document.getElementById('working_office-edit-id').value = record.id;
+        document.getElementById('working_office-edit-name-input').value = record.name;
+        openModal('working_office-edit-modal-overlay');
       } else if (tab === 'users') {
         clearFieldError('user-edit-name-field', 'user-edit-name-error');
         clearFieldError('user-edit-email-field', 'user-edit-email-error');
-        clearFieldError('user-edit-mandals-field', 'user-edit-mandals-error');
+        clearFieldError('user-edit-working-office-field', 'user-edit-working-office-error');
         
         document.getElementById('user-edit-id').value = record.id;
         document.getElementById('user-edit-name-input').value = record.name;
         document.getElementById('user-edit-email-input').value = record.email;
+        document.getElementById('user-edit-status-checkbox').checked = record.status === 1 || record.status === true;
         
-        // Populate mandals checkboxes
-        populateUserMandalCheckboxes(record.mandals);
-        
-        // document.getElementById('user-edit-role-select').value = record.role || 'User';
+        populateWorkingOfficeDropdown('user-edit-working-office-select', record.working_office_id);
+        populateMandalCheckboxes(record.mandal_ids || []);
         openModal('user-edit-modal-overlay');
       }
     })
-    .catch(() => showToast('Failed to load record for editing.', true));
+    .catch(() => showToast('Failed to load record details.', true));
 }
 
-function populateUserMandalCheckboxes(mandals) {
+function populateMandalCheckboxes(selectedIds) {
   const container = document.getElementById('user-edit-mandals-container');
-  container.innerHTML = ''; // Clear existing checkboxes
- 
-  if (!mandals || mandals.length === 0) {
-    container.innerHTML = '<p style="font-size: 11px; color: #999; padding: 10px 0;">No mandals available.</p>';
-    return;
-  }
- 
-  mandals.forEach(mandal => {
-    const div = document.createElement('div');
-    div.className = 'mandal-checkbox-item';
-    
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.id = `mandal-checkbox-${mandal.id}`;
-    checkbox.name = 'mandal_ids[]';
-    checkbox.value = mandal.id;
-    checkbox.checked = mandal.assigned || false;
-    
-    const label = document.createElement('label');
-    label.htmlFor = `mandal-checkbox-${mandal.id}`;
-    label.textContent = mandal.name;
-    
-    div.appendChild(checkbox);
-    div.appendChild(label);
-    container.appendChild(div);
-  });
+  container.innerHTML = '';
+
+  fetch('/api/admin/mandals', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(mandals => {
+      const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
+      data.forEach(m => {
+        const checked = selectedIds.includes(m.id);
+        const label = document.createElement('label');
+        label.className = 'mandal-checkbox-item';
+        label.innerHTML = `
+          <input type="checkbox" name="mandals" value="${m.id}" ${checked ? 'checked' : ''}>
+          <span>${escapeHtml(m.name)}</span>
+        `;
+        container.appendChild(label);
+      });
+    })
+    .catch(() => showToast('Failed to load mandals for assignment.', true));
+}
+
+// NEW: Function to populate working offices dropdown
+function populateWorkingOfficeDropdown(selectId, selectedId = null) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">Loading offices…</option>';
+
+  fetch('/api/admin/working-offices', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(offices => {
+      sel.innerHTML = '<option value="">— Select Working Office —</option>';
+      const data = Array.isArray(offices) ? offices : (offices.data || []);
+      data.forEach(office => {
+        const opt = document.createElement('option');
+        opt.value = office.id;
+        opt.textContent = office.name;
+        sel.appendChild(opt);
+      });
+      if (selectedId !== null && selectedId !== '') {
+        sel.value = selectedId;
+      }
+    })
+    .catch(() => {
+      sel.innerHTML = '<option value="">Failed to load offices</option>';
+      showToast('Failed to load working offices.', true);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════════
    UPDATE MANDAL
 ══════════════════════════════════════════════════════════════════ */
-function submitEditMandalForm(e) {
+function submitEditUserForm(e) {
   e.preventDefault();
-  clearFieldError('mandal-edit-name-field', 'mandal-edit-name-error');
-
-  const id   = document.getElementById('mandal-edit-id').value;
-  const name = document.getElementById('mandal-edit-name-input').value.trim();
+  clearFieldError('user-edit-name-field', 'user-edit-name-error');
+  clearFieldError('user-edit-email-field', 'user-edit-email-error');
+  clearFieldError('user-edit-working-office-field', 'user-edit-working-office-error');
+ 
+  const id = document.getElementById('user-edit-id').value;
+  const name = document.getElementById('user-edit-name-input').value.trim();
+  const email = document.getElementById('user-edit-email-input').value.trim();
+  const working_office_id = document.getElementById('user-edit-working-office-select').value;
+  const status = document.getElementById('user-edit-status-checkbox').checked ? 1 : 0;
+ 
+  // Get selected mandals
+  const mandalCheckboxes = document.querySelectorAll('#user-edit-mandals-container input[type="checkbox"]:checked');
+  const mandalIds = Array.from(mandalCheckboxes).map(cb => parseInt(cb.value));
+ 
+  let hasError = false;
   if (!name) {
-    setFieldError('mandal-edit-name-field', 'mandal-edit-name-error', 'Mandal name is required.');
-    return;
+    setFieldError('user-edit-name-field', 'user-edit-name-error', 'Name is required.');
+    hasError = true;
   }
-
-  const btn = document.getElementById('mandal-edit-submit-btn');
+  if (!email) {
+    setFieldError('user-edit-email-field', 'user-edit-email-error', 'Email is required.');
+    hasError = true;
+  }
+  if (!working_office_id) {
+    setFieldError('user-edit-working-office-field', 'user-edit-working-office-error', 'Please select a working office.');
+    hasError = true;
+  }
+  if (hasError) return;
+ 
+  const btn = document.getElementById('user-edit-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Updating…';
-
-  fetch(EDIT_META.mandal.updateUrl(id), {
+ 
+  fetch(EDIT_META.users.updateUrl(id), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -981,28 +1344,36 @@ function submitEditMandalForm(e) {
       'X-CSRF-TOKEN': csrfToken(),
       'X-Requested-With': 'XMLHttpRequest',
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ 
+      name, 
+      email,
+      working_office_id: parseInt(working_office_id),
+      status: status,
+      mandal_ids: mandalIds,
+    }),
   })
   .then(async r => {
     const data = await r.json().catch(() => ({}));
     if (r.status === 422) {
-      const msg = data.errors?.name?.[0] || data.message || 'Validation failed.';
-      setFieldError('mandal-edit-name-field', 'mandal-edit-name-error', msg);
+      if (data.errors?.name) setFieldError('user-edit-name-field', 'user-edit-name-error', data.errors.name[0]);
+      if (data.errors?.email) setFieldError('user-edit-email-field', 'user-edit-email-error', data.errors.email[0]);
+      if (data.errors?.working_office_id) setFieldError('user-edit-working-office-field', 'user-edit-working-office-error', data.errors.working_office_id[0]);
+      if (!data.errors) showToast(data.message || 'Validation failed.', true);
       return;
     }
     if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to update mandal.', true);
+      showToast(data.message || 'Failed to update user.', true);
       return;
     }
-    showToast('✔ Mandal updated successfully.');
-    closeModal('mandal-edit-modal-overlay');
-    loadedTabs.delete('mandal');
-    loadTabData('mandal');
+    showToast('✔ User updated successfully.');
+    closeModal('user-edit-modal-overlay');
+    loadedTabs.delete('users');
+    loadTabData('users');
   })
   .catch(() => showToast('Network error. Please try again.', true))
   .finally(() => {
     btn.disabled = false;
-    btn.textContent = 'Update Mandal';
+    btn.textContent = 'Update User';
   });
 }
 
@@ -1068,18 +1439,72 @@ function submitEditVillageForm(e) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   UPDATE WORKING OFFICE
+══════════════════════════════════════════════════════════════════ */
+function submitEditWorkingOfficeForm(e) {
+  e.preventDefault();
+  clearFieldError('working_office-edit-name-field', 'working_office-edit-name-error');
+
+  const id   = document.getElementById('working_office-edit-id').value;
+  const name = document.getElementById('working_office-edit-name-input').value.trim();
+
+  if (!name) {
+    setFieldError('working_office-edit-name-field', 'working_office-edit-name-error', 'Office name is required.');
+    return;
+  }
+
+  const btn = document.getElementById('working_office-edit-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+
+  fetch(EDIT_META.working_office.updateUrl(id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ name }),
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422) {
+      if (data.errors?.name) setFieldError('working_office-edit-name-field', 'working_office-edit-name-error', data.errors.name[0]);
+      if (!data.errors) showToast(data.message || 'Validation failed.', true);
+      return;
+    }
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to update working office.', true);
+      return;
+    }
+    showToast('✔ Working office updated successfully.');
+    closeModal('working_office-edit-modal-overlay');
+    loadedTabs.delete('working_office');
+    loadTabData('working_office');
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Update Office';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
    UPDATE USER
 ══════════════════════════════════════════════════════════════════ */
 function submitEditUserForm(e) {
   e.preventDefault();
   clearFieldError('user-edit-name-field', 'user-edit-name-error');
   clearFieldError('user-edit-email-field', 'user-edit-email-error');
+  clearFieldError('user-edit-working-office-field', 'user-edit-working-office-error');
  
-  const id    = document.getElementById('user-edit-id').value;
-  const name  = document.getElementById('user-edit-name-input').value.trim();
+  const id = document.getElementById('user-edit-id').value;
+  const name = document.getElementById('user-edit-name-input').value.trim();
   const email = document.getElementById('user-edit-email-input').value.trim();
+  const working_office_id = document.getElementById('user-edit-working-office-select').value;
+  const status = document.getElementById('user-edit-status-checkbox').checked ? 1 : 0;
  
-  // Get selected mandal IDs
   const mandalCheckboxes = document.querySelectorAll('#user-edit-mandals-container input[type="checkbox"]:checked');
   const mandalIds = Array.from(mandalCheckboxes).map(cb => parseInt(cb.value));
  
@@ -1090,6 +1515,10 @@ function submitEditUserForm(e) {
   }
   if (!email) {
     setFieldError('user-edit-email-field', 'user-edit-email-error', 'Email is required.');
+    hasError = true;
+  }
+  if (!working_office_id) {
+    setFieldError('user-edit-working-office-field', 'user-edit-working-office-error', 'Please select a working office.');
     hasError = true;
   }
   if (hasError) return;
@@ -1109,14 +1538,17 @@ function submitEditUserForm(e) {
     body: JSON.stringify({ 
       name, 
       email,
+      working_office_id: parseInt(working_office_id),
+      status: status,
       mandal_ids: mandalIds,
     }),
   })
   .then(async r => {
     const data = await r.json().catch(() => ({}));
     if (r.status === 422) {
-      if (data.errors?.name)  setFieldError('user-edit-name-field', 'user-edit-name-error', data.errors.name[0]);
+      if (data.errors?.name) setFieldError('user-edit-name-field', 'user-edit-name-error', data.errors.name[0]);
       if (data.errors?.email) setFieldError('user-edit-email-field', 'user-edit-email-error', data.errors.email[0]);
+      if (data.errors?.working_office_id) setFieldError('user-edit-working-office-field', 'user-edit-working-office-error', data.errors.working_office_id[0]);
       if (!data.errors) showToast(data.message || 'Validation failed.', true);
       return;
     }
@@ -1137,12 +1569,13 @@ function submitEditUserForm(e) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   DELETE — shared confirm modal for all three tabs
+   DELETE — shared confirm modal for all tabs
 ══════════════════════════════════════════════════════════════════ */
 const DELETE_META = {
-  mandal:  { url: id => `/api/admin/mandals/${id}`,  label: 'this Mandal',  reloadTab: 'mandal'  },
-  village: { url: id => `/api/admin/villages/${id}`, label: 'this Village', reloadTab: 'village' },
-  users:   { url: id => `/api/admin/users/${id}`,    label: 'this User',    reloadTab: 'users'   },
+  mandal:  { url: id => `/api/admin/mandals/${id}`,           label: 'this Mandal',         reloadTab: 'mandal'  },
+  village: { url: id => `/api/admin/villages/${id}`,          label: 'this Village',        reloadTab: 'village' },
+  working_office: { url: id => `/api/admin/working-offices/${id}`, label: 'this Working Office', reloadTab: 'working_office' },
+  users:   { url: id => `/api/admin/users/${id}`,             label: 'this User',           reloadTab: 'users'   },
 };
 let pendingDelete = null;
 

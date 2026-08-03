@@ -36,27 +36,22 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'mandal_id' => ['required', 'integer', 'exists:mandals,id'],
+            'working_office_id' => ['required', 'integer', 'exists:working_offices,id'],
         ]);
  
         $user = User::create([
             'name' => $request->name,
             'phone' => $request->phone,
-            'mandal_id' => (int) $request->mandal_id,
+            'working_office_id' => (int) $request->working_office_id,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'status' => 0, // Set default status to inactive (0) for new users
         ]);
- 
-        /**
-         * NEW: Save the selected mandal to user_mandals pivot table
-         * This establishes the many-to-many relationship between user and mandal
-         */
-        $user->mandals()->attach((int) $request->mandal_id);
  
         event(new Registered($user));
  
-        Auth::login($user);
- 
-        return redirect(route('dashboard', absolute: false));
+        // Don't login immediately - wait for admin approval
+        return redirect(route('login', absolute: false))
+            ->with('success', 'Registration Successful! Please wait for Admin to Activate your Account.');
     }
 }

@@ -29,7 +29,6 @@ class OtpLoginController extends Controller
      */
     public function sendOtp(Request $request): RedirectResponse
     {
-        // Validate email and password
         $request->validate([
             'email' => ['required', 'email', 'exists:users,email'],
             'password' => ['required', 'string'],
@@ -40,31 +39,29 @@ class OtpLoginController extends Controller
         $email = $request->email;
 
         try {
-            // Find user
             $user = User::where('email', $email)->first();
 
             if (!$user) {
                 return back()->withErrors(['email' => 'User not found.']);
             }
 
-            // Verify password
+            // Check if user status is inactive (0)
+            if ($user->status === 0 || $user->status == 0) {
+                \Log::info('OTP Login attempt - Inactive user: ' . $email);
+                return back()->withErrors(['email' => 'Please wait for Admin to Activate your Account.']);
+            }
+
             if (!Hash::check($request->password, $user->password)) {
                 \Log::warning('OTP Login - Invalid password for: ' . $email);
                 return back()->withErrors(['password' => 'Invalid password.']);
             }
 
-            \Log::info('OTP Login - Password verified for: ' . $email);
-
-            // Generate 6-digit OTP
             $otp = rand(100000, 999999);
-            \Log::info('OTP generated: ' . $otp . ' for: ' . $email);
 
-            // Delete any existing OTPs for this email
             DB::table('login_otps')
                 ->where('email', $email)
                 ->delete();
 
-            // Store OTP in database (valid for 5 minutes)
             DB::table('login_otps')->insert([
                 'email' => $email,
                 'otp' => $otp,
@@ -74,9 +71,6 @@ class OtpLoginController extends Controller
                 'expires_at' => Carbon::now()->addMinutes(5),
             ]);
 
-            \Log::info('OTP stored in DB for: ' . $email);
-
-            // Send OTP via email
             Mail::send('emails.otp-login', [
                 'user' => $user,
                 'otp' => $otp,
@@ -85,9 +79,6 @@ class OtpLoginController extends Controller
                     ->subject('Your Login OTP — Land Record Digitalization');
             });
 
-            \Log::info('OTP email sent to: ' . $email);
-
-            // Redirect to OTP verification page
             return redirect()->route('otp.verify')
                 ->with('success', 'OTP has been sent to your email.')
                 ->with('email', $email);
@@ -120,8 +111,6 @@ class OtpLoginController extends Controller
 
         $email = $request->email;
         $otp = $request->otp;
-
-        \Log::info('OTP verification attempt for: ' . $email . ' with OTP: ' . $otp);
 
         try {
             // Check if OTP exists and is valid
@@ -187,8 +176,6 @@ class OtpLoginController extends Controller
 
             // Regenerate session
             $request->session()->regenerate();
-
-            \Log::info('User logged in via OTP: ' . $email);
 
             // Redirect to dashboard
             return redirect()->intended(route('dashboard', absolute: false))

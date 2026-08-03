@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Mandal;
 use App\Models\User;
 use App\Models\Village;
+use App\Models\WorkingOffice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -85,10 +86,12 @@ class AdminController extends Controller
 
     /**
      * GET /api/admin/users
+     * Returns all non-admin users with their working office and status
+     * UPDATED: Now includes working_office_id, working_office_name, and status
      */
     public function users(Request $request)
     {
-        $users = User::with('getMandal')
+        $users = User::with('workingOffice')
             ->where('is_admin', false)
             ->when($request->filled('search'), function ($q) use ($request) {
                 $q->where(function ($sub) use ($request) {
@@ -99,11 +102,15 @@ class AdminController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn (User $u) => [
-                'id'        => $u->id,
-                'name'      => $u->name,
-                'email'     => $u->email,
-                'role'      => $u->role ?? 'User',
-                'mandal'    => $u->getMandal?->name
+                'id'                   => $u->id,
+                'name'                 => $u->name,
+                'email'                => $u->email,
+                'role'                 => $u->role ?? 'User',
+                'working_office_id'    => $u->working_office_id,
+                'working_office_name'  => $u->workingOffice?->name ?? 'Not Assigned',
+                'status'               => (int) $u->status,
+                'mandal'               => $u->getMandal?->name,
+                'mandal_ids'           => $u->mandals?->pluck('id')->toArray() ?? [],
             ]);
 
         return response()->json($users);
@@ -128,7 +135,7 @@ class AdminController extends Controller
         $mandal = Mandal::create([
             'name'      => $validated['name'],
             'slug'      => Str::slug($validated['name']),
-            'is_active' => true, // default active, as required
+            'is_active' => true,
         ]);
 
         return response()->json([
@@ -156,7 +163,6 @@ class AdminController extends Controller
                 'required',
                 'string',
                 'max:255',
-                // Unique per-mandal — same village name can exist under a different mandal
                 Rule::unique('villages', 'name')->where(
                     fn ($query) => $query->where('mandal_id', $request->input('mandal_id'))
                 ),
@@ -169,7 +175,7 @@ class AdminController extends Controller
             'mandal_id' => $validated['mandal_id'],
             'name'      => $validated['name'],
             'slug'      => Str::slug($validated['name']),
-            'is_active' => true, // default active, as required
+            'is_active' => true,
         ]);
 
         $village->load('mandal');
@@ -219,24 +225,34 @@ class AdminController extends Controller
 
     /**
      * GET /api/admin/users/{user}/edit
-     * Returns user data along with all available mandals and current assignments
+     * Returns user data along with all available mandals, working offices, and current assignments
+     * UPDATED: Now includes working_office_id, status, and list of all working offices
      */
     public function editUser(User $user)
     {
         $allMandals = Mandal::orderBy('name')->get(['id', 'name']);
         $userMandalIds = $user->mandals()->pluck('mandal_id')->toArray();
+        
+        // Get all working offices for dropdown
+        $allWorkingOffices = WorkingOffice::orderBy('name')->get(['id', 'name']);
 
         return response()->json([
-            'id'          => $user->id,
-            'name'        => $user->name,
-            'email'       => $user->email,
-            'role'        => $user->role ?? 'User',
-            'mandals'     => $allMandals->map(fn (Mandal $m) => [
+            'id'                    => $user->id,
+            'name'                  => $user->name,
+            'email'                 => $user->email,
+            'role'                  => $user->role ?? 'User',
+            'working_office_id'     => $user->working_office_id,
+            'status'                => (int) $user->status,
+            'working_offices'       => $allWorkingOffices->map(fn (WorkingOffice $wo) => [
+                'id'   => $wo->id,
+                'name' => $wo->name,
+            ]),
+            'mandals'               => $allMandals->map(fn (Mandal $m) => [
                 'id'       => $m->id,
                 'name'     => $m->name,
                 'assigned' => in_array($m->id, $userMandalIds),
             ]),
-            'assigned_mandal_ids' => $userMandalIds,
+            'assigned_mandal_ids'   => $userMandalIds,
         ]);
     }
 
@@ -289,7 +305,6 @@ class AdminController extends Controller
                 'required',
                 'string',
                 'max:255',
-                // Unique per-mandal, ignoring this village's own row
                 Rule::unique('villages', 'name')
                     ->where(fn ($query) => $query->where('mandal_id', $request->input('mandal_id')))
                     ->ignore($village->id),
@@ -322,25 +337,34 @@ class AdminController extends Controller
 
     /**
      * PUT /api/admin/users/{user}
-     * Body: { name: string, email: string, role: string, password?: string, mandal_ids?: array }
+     * Body: { name: string, email: string, password?: string, working_office_id: int, status: int, mandal_ids?: array }
+     * UPDATED: Now accepts and validates working_office_id and status
      */
     public function updateUser(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'email'       => [
+            'name'                => ['required', 'string', 'max:255'],
+            'email'               => [
                 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-            'password'    => ['nullable', 'string', 'min:8', 'confirmed'],
-            'mandal_ids'  => ['nullable', 'array'],
-            'mandal_ids.*' => ['integer', 'exists:mandals,id'],
+            'password'            => ['nullable', 'string', 'min:8', 'confirmed'],
+            'working_office_id'   => ['required', 'integer', 'exists:working_offices,id'],
+            'status'              => ['nullable', 'integer', 'in:0,1'],
+            'mandal_ids'          => ['nullable', 'array'],
+            'mandal_ids.*'        => ['integer', 'exists:mandals,id'],
         ], [
-            'email.unique' => 'A user with this email already exists.',
+            'email.unique'              => 'A user with this email already exists.',
+            'working_office_id.required' => 'Working office is required.',
+            'working_office_id.exists'   => 'The selected working office does not exist.',
+            'status.in'                 => 'Status must be 0 (Inactive) or 1 (Active).',
         ]);
 
-        $user->name  = $validated['name'];
-        $user->email = $validated['email'];
+        $user->name              = $validated['name'];
+        $user->email             = $validated['email'];
+        $user->working_office_id = $validated['working_office_id'];
+        $user->status            = $validated['status'];
+        
         if (! empty($validated['password'])) {
             $user->password = bcrypt($validated['password']);
         }
@@ -354,17 +378,19 @@ class AdminController extends Controller
             'success' => true,
             'message' => 'User updated successfully.',
             'user'    => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'role'      => $user->role ?? 'User',
-                'is_active' => (bool) ($user->is_active ?? true),
+                'id'                  => $user->id,
+                'name'                => $user->name,
+                'email'               => $user->email,
+                'role'                => $user->role ?? 'User',
+                'working_office_id'   => $user->working_office_id,
+                'status'              => (int) $user->status,
+                'is_active'           => (bool) ($user->is_active ?? true),
             ],
         ]);
     }
 
     /* ══════════════════════════════════════════════════════════════
-       TOGGLE STATUS — reused by all three tabs (optional wiring)
+       TOGGLE STATUS — reused by all three tabs
     ══════════════════════════════════════════════════════════════ */
 
     public function toggleMandalStatus(Mandal $mandal)
@@ -425,5 +451,46 @@ class AdminController extends Controller
         $user->delete();
 
         return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       WORKING OFFICE — CRUD operations
+    ══════════════════════════════════════════════════════════════ */
+
+    public function workingOffices()
+    {
+        return response()->json(WorkingOffice::all());
+    }
+
+    public function storeWorkingOffice(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:working_offices,name',
+        ]);
+        $office = WorkingOffice::create($validated);
+        return response()->json(['success' => true, 'message' => 'Working office created successfully', 'data' => $office], 201);
+    }
+
+    public function editWorkingOffice($id)
+    {
+        $office = WorkingOffice::findOrFail($id);
+        return response()->json($office);
+    }
+
+    public function updateWorkingOffice(Request $request, $id)
+    {
+        $office = WorkingOffice::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:working_offices,name,' . $id,
+        ]);
+        $office->update($validated);
+        return response()->json(['success' => true, 'message' => 'Working office updated successfully', 'data' => $office]);
+    }
+
+    public function destroyWorkingOffice($id)
+    {
+        $office = WorkingOffice::findOrFail($id);
+        $office->delete();
+        return response()->json(['success' => true, 'message' => 'Working office deleted successfully']);
     }
 }

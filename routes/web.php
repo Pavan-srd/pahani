@@ -102,6 +102,13 @@ Route::middleware(['is_admin'])->group(function () {
     Route::delete('/api/admin/villages/{village}', [AdminController::class, 'destroyVillage']);
     Route::delete('/api/admin/users/{user}', [AdminController::class, 'destroyUser']);
 
+    // Working Office endpoints
+    Route::get('/api/admin/working-offices', [AdminController::class, 'workingOffices']);
+    Route::post('/api/admin/working-offices', [AdminController::class, 'storeWorkingOffice']);
+    Route::get('/api/admin/working-offices/{id}/edit', [AdminController::class, 'editWorkingOffice']);
+    Route::put('/api/admin/working-offices/{id}', [AdminController::class, 'updateWorkingOffice']);
+    Route::delete('/api/admin/working-offices/{id}', [AdminController::class, 'destroyWorkingOffice']);
+
     Route::prefix('admin/pahani-management')->name('admin.pahani-management.')->group(function () {
         
         // List all PDFs (admin view)

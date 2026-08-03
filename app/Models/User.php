@@ -72,4 +72,10 @@ class User extends Authenticatable
     {
         $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
+
+    public function workingOffice()
+    {
+        return $this->belongsTo(WorkingOffice::class, 'working_office_id');
+    }
+    
 }
