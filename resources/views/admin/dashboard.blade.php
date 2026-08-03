@@ -1254,22 +1254,43 @@ function populateMandalCheckboxes(selectedIds) {
   const container = document.getElementById('user-edit-mandals-container');
   container.innerHTML = '';
 
+  // Convert selectedIds to array of integers for proper comparison
+  const selected = Array.isArray(selectedIds) 
+    ? selectedIds.map(id => parseInt(id))
+    : [];
+
+  console.log('Selected mandal IDs:', selected);
+
   fetch('/api/admin/mandals', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(mandals => {
       const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
+      
+      if (data.length === 0) {
+        container.innerHTML = '<p style="color: #999; font-size: 11px;">No mandals available</p>';
+        return;
+      }
+
       data.forEach(m => {
-        const checked = selectedIds.includes(m.id);
+        const mandalId = parseInt(m.id);
+        const isChecked = selected.includes(mandalId);
+        
+
         const label = document.createElement('label');
         label.className = 'mandal-checkbox-item';
         label.innerHTML = `
-          <input type="checkbox" name="mandals" value="${m.id}" ${checked ? 'checked' : ''}>
+          <input type="checkbox" name="mandals" value="${mandalId}" ${isChecked ? 'checked' : ''}>
           <span>${escapeHtml(m.name)}</span>
         `;
         container.appendChild(label);
       });
+
+      console.log('Mandals populated successfully');
     })
-    .catch(() => showToast('Failed to load mandals for assignment.', true));
+    .catch((err) => {
+      console.error('Failed to load mandals:', err);
+      showToast('Failed to load mandals for assignment.', true);
+    });
 }
 
 // NEW: Function to populate working offices dropdown

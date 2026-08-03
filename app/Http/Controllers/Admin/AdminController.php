@@ -91,7 +91,7 @@ class AdminController extends Controller
      */
     public function users(Request $request)
     {
-        $users = User::with('workingOffice')
+        $users = User::with('workingOffice', 'mandals')
             ->where('is_admin', false)
             ->when($request->filled('search'), function ($q) use ($request) {
                 $q->where(function ($sub) use ($request) {
@@ -110,7 +110,7 @@ class AdminController extends Controller
                 'working_office_name'  => $u->workingOffice?->name ?? 'Not Assigned',
                 'status'               => (int) $u->status,
                 'mandal'               => $u->getMandal?->name,
-                'mandal_ids'           => $u->mandals?->pluck('id')->toArray() ?? [],
+                'mandal_ids'           => $u->mandals?->pluck('id')->map(fn($id) => (int) $id)->toArray() ?? [],
             ]);
 
         return response()->json($users);
@@ -231,9 +231,13 @@ class AdminController extends Controller
     public function editUser(User $user)
     {
         $allMandals = Mandal::orderBy('name')->get(['id', 'name']);
-        $userMandalIds = $user->mandals()->pluck('mandal_id')->toArray();
         
-        // Get all working offices for dropdown
+        // Get assigned mandal IDs and convert to integers
+        $userMandalIds = $user->mandals()
+            ->pluck('mandal_id')
+            ->map(fn($id) => (int) $id)
+            ->toArray();
+
         $allWorkingOffices = WorkingOffice::orderBy('name')->get(['id', 'name']);
 
         return response()->json([
@@ -252,6 +256,7 @@ class AdminController extends Controller
                 'name'     => $m->name,
                 'assigned' => in_array($m->id, $userMandalIds),
             ]),
+            'mandal_ids'            => $userMandalIds,
             'assigned_mandal_ids'   => $userMandalIds,
         ]);
     }
