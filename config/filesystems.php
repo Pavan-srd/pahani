@@ -48,15 +48,40 @@ return [
         ],
 
         'r2' => [
-            'driver'                  => 's3',
-            'key'                     => env('R2_ACCESS_KEY_ID'),
-            'secret'                  => env('R2_SECRET_ACCESS_KEY'),
-            'region'                  => 'auto',
-            'bucket'                  => env('R2_BUCKET'),
-            'url'                     => env('R2_URL'),           // optional public URL
-            'endpoint'                => env('R2_ENDPOINT'),      // https://<account>.r2.cloudflarestorage.com
-            'use_path_style_endpoint' => true,
-            'throw'                   => true,
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_BUCKET', 'cloud-pdfs'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'url' => env('R2_URL'),
+            'use_path_style_endpoint' => false,
+            
+            // ─── Security Settings ───
+            'visibility' => 'private',  // IMPORTANT: Keep private!
+            'metadata' => [
+                'CacheControl' => 'max-age=0,no-cache,no-store,must-revalidate,private',
+            ],
+            
+            // ─── Domain Restrictions ───
+            'allowed_domains' => array_filter(
+                array_map('trim', explode(',', env('R2_ALLOWED_DOMAINS', 'dlrsrd.in')))
+            ),
+            'allowed_domain' => env('R2_ALLOWED_DOMAIN', 'dlrsrd.in'),
+            
+            // ─── IP Restrictions (optional) ───
+            'verify_ip' => env('R2_VERIFY_IP', false),
+            'whitelisted_ips' => array_filter(
+                array_map('trim', explode(',', env('R2_WHITELISTED_IPS', '')))
+            ),
+            
+            // ─── Rate Limiting ───
+            'rate_limit_per_hour' => env('R2_RATE_LIMIT_PER_HOUR', 100),
+            
+            // ─── URL Expiration ───
+            'signed_url_expires' => env('R2_SIGNED_URL_EXPIRES', 3600),
+            
+            'throw' => false,
         ],
 
     ],
