@@ -222,17 +222,17 @@ class PahaniController extends Controller
     public function view(Request $request)
     {
         $mandals = Mandal::where('is_active', true)->orderBy('name')->get();
-
+ 
         $records  = collect();
         $mandal   = null;
         $village  = null;
-
+ 
         if ($request->filled('mandal') && $request->filled('village')) {
             $mandal = Mandal::where('slug', $request->mandal)->firstOrFail();
             $village = Village::where('mandal_id', $mandal->id)
                 ->where('slug', $request->village)
                 ->firstOrFail();
-
+ 
             $records = Pahani::with('pahaniDocument')
                 ->where('mandal_id', $mandal->id)
                 ->where('village_id', $village->id)
@@ -243,7 +243,7 @@ class PahaniController extends Controller
                 )
                 ->get();
         }
-
+ 
         return view('pahani.view', compact('mandals', 'records', 'mandal', 'village'));
     }
 
@@ -353,13 +353,62 @@ class PahaniController extends Controller
      */
     public function viewPdfPage(Pahani $pahani)
     {
+        // ── Check 1: Document has file path ──
         if (!$pahani->file_path) {
             abort(404, 'No file uploaded for this record.');
         }
-    
+ 
+        // ── Check 2: User has permission ──
+        $this->authorizeUserAccess($pahani);
+ 
+        // ── Check 3: File exists in R2 ──
+        if (!Storage::disk('r2')->exists($pahani->file_path)) {
+            Log::error('PDF file not found in R2', [
+                'pahani_id' => $pahani->id,
+                'file_path' => $pahani->file_path,
+            ]);
+            abort(404, 'File not found in Cloudflare R2.');
+        }
+ 
+        // ── Check 4: Generate secure signed URL ──
+        try {
+            $expiresAt = Carbon::now()->addMinutes(
+                config('filesystems.disks.r2.signed_url_expires', 60)
+            );
+            
+            // Generate Cloudflare R2 signed URL
+            // This URL is valid for 60 minutes and includes cryptographic signature
+            $cloudflareUrl = Storage::disk('r2')->temporaryUrl(
+                $pahani->file_path,
+                $expiresAt
+            );
+ 
+        } catch (\Exception $e) {
+            Log::error('Failed to generate signed URL', [
+                'user_id' => Auth::id(),
+                'pahani_id' => $pahani->id,
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'Unable to generate secure URL');
+        }
+ 
+        // ── Check 5: Log access for audit trail ──
+        Log::channel('pdf_access')->info('PDF Viewer Page Accessed', [
+            'user_id' => Auth::id(),
+            'user_email' => Auth::user()->email,
+            'pahani_id' => $pahani->id,
+            'document_name' => $pahani->document_name,
+            'file_path' => $pahani->file_path,
+            'file_size' => $pahani->file_size ?? 0,
+            'ip' => request()->ip(),
+            'user_agent' => request()->header('User-Agent'),
+            'timestamp' => now(),
+            'url_expires_at' => $expiresAt->toDateTimeString(),
+        ]);
+ 
         return view('pahani.pdf-viewer', [
             'pahani'       => $pahani,
-            'pdfSourceUrl' => route('pahani.pdf-source', $pahani),
+            'pdfSourceUrl' => $cloudflareUrl,  // ← Direct Cloudflare URL
         ]);
     }
     
@@ -397,5 +446,153 @@ class PahaniController extends Controller
             'X-Frame-Options'     => 'SAMEORIGIN',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    public function getSignedUrl(Request $request, Pahani $pahani)
+    {
+        try {
+            // ── Check: User authenticated (middleware) ──
+            if (!Auth::check()) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+ 
+            // ── Check: Document has file ──
+            if (!$pahani->file_path) {
+                return response()->json(['error' => 'File not found'], 404);
+            }
+ 
+            // ── Check: User has permission ──
+            try {
+                $this->authorizeUserAccess($pahani);
+            } catch (\Exception $e) {
+                Log::warning('PDF URL access denied - no permission', [
+                    'user_id' => Auth::id(),
+                    'pahani_id' => $pahani->id,
+                ]);
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+ 
+            // ── Check: File exists in R2 ──
+            if (!Storage::disk('r2')->exists($pahani->file_path)) {
+                return response()->json(['error' => 'File not found in storage'], 404);
+            }
+ 
+            // ── Generate signed URL ──
+            $expiresAt = Carbon::now()->addMinutes(
+                config('filesystems.disks.r2.signed_url_expires', 60)
+            );
+ 
+            $cloudflareUrl = Storage::disk('r2')->temporaryUrl(
+                $pahani->file_path,
+                $expiresAt
+            );
+ 
+            // ── Log access ──
+            Log::channel('pdf_access')->info('Signed URL Generated', [
+                'user_id' => Auth::id(),
+                'pahani_id' => $pahani->id,
+                'document_name' => $pahani->document_name,
+                'ip' => request()->ip(),
+                'timestamp' => now(),
+            ]);
+ 
+            return response()->json([
+                'success' => true,
+                'url' => $cloudflareUrl,
+                'filename' => $pahani->file_name,
+                'expires_at' => $expiresAt->toDateTimeString(),
+                'expires_in_minutes' => 60,
+            ]);
+ 
+        } catch (\Exception $e) {
+            Log::error('Error generating signed URL', [
+                'user_id' => Auth::id() ?? 'guest',
+                'pahani_id' => $pahani->id ?? 'unknown',
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'Server error'], 500);
+        }
+    }
+
+    /**
+     * Redirect to Cloudflare R2 signed URL
+     * GET /pahani/pdf-redirect/{pahani}
+     * 
+     * Direct redirect to Cloudflare URL in browser
+     * Browser opens PDF in new tab/window directly from Cloudflare
+     * 
+     * Usage:
+     * <a href="{{ route('pahani.pdf-redirect', $pahani) }}" target="_blank">
+     *   View PDF in Cloudflare
+     * </a>
+     */
+    public function redirectToCloudflare(Pahani $pahani)
+    {
+        // ── Check: User authenticated ──
+        if (!Auth::check()) {
+            abort(401, 'Unauthorized');
+        }
+ 
+        // ── Check: Document has file ──
+        if (!$pahani->file_path) {
+            abort(404, 'No file uploaded for this record.');
+        }
+ 
+        // ── Check: User has permission ──
+        $this->authorizeUserAccess($pahani);
+ 
+        // ── Check: File exists in R2 ──
+        if (!Storage::disk('r2')->exists($pahani->file_path)) {
+            abort(404, 'File not found in storage.');
+        }
+ 
+        // ── Generate signed URL ──
+        $expiresAt = Carbon::now()->addMinutes(60);
+        $cloudflareUrl = Storage::disk('r2')->temporaryUrl(
+            $pahani->file_path,
+            $expiresAt
+        );
+ 
+        // ── Log access ──
+        Log::channel('pdf_access')->info('PDF Redirect to Cloudflare', [
+            'user_id' => Auth::id(),
+            'user_email' => Auth::user()->email,
+            'pahani_id' => $pahani->id,
+            'document_name' => $pahani->document_name,
+            'ip' => request()->ip(),
+            'timestamp' => now(),
+        ]);
+ 
+        // ── Redirect to Cloudflare R2 URL ──
+        return redirect($cloudflareUrl);
+    }
+    
+ 
+    /**
+     * Verify user has permission to access this document
+     * 
+     * Checks:
+     * 1. User is owner of document
+     * 2. User is admin
+     * 3. User's mandals include this document's mandal
+     */
+    private function authorizeUserAccess(Pahani $pahani)
+    {
+        $user = Auth::user();
+ 
+        // ── Check: User owns document OR is admin ──
+        if ($pahani->uploaded_by === $user->id || $user->role === 'admin') {
+            return true;
+        }
+ 
+        // ── Check: User's mandals include this document's mandal ──
+        $userMandals = $user->mandals()->pluck('mandals.id')->toArray();
+        
+        if (in_array($pahani->mandal_id, $userMandals)) {
+            return true;
+        }
+ 
+        // ── Access denied ──
+        throw new \Exception('Unauthorized document access');
     }
 }

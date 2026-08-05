@@ -11,12 +11,19 @@ Route::get('/dashboard', [PahaniController::class, 'index'])->middleware(['auth'
 Route::middleware('auth')->group(function () {
     Route::get('/', [PahaniController::class, 'index'])->name('pahani.index');
 
-    Route::get('/pahani/view', [PahaniController::class, 'view'])->name('pahani.view');
     Route::get('/pahani/file/{pahani}', [PahaniController::class, 'showFile'])->name('pahani.file');
-
-    Route::get('/pahani/view-pdf/{pahani}', [PahaniController::class, 'viewPdfPage'])->name('pahani.view-pdf');
+    Route::get('/pahani/view', [PahaniController::class, 'view'])->name('pahani.view');
     Route::get('/pahani/pdf-source/{pahani}', [PahaniController::class, 'pdfSource'])->name('pahani.pdf-source');
 
+    Route::middleware('verify-pdf-access')->group(function () {
+        Route::get('/pahani/view-pdf/{pahani}', [PahaniController::class, 'viewPdfPage'])
+            ->name('pahani.view-pdf');
+        Route::post('/pahani/pdf-url/{pahani}', [PahaniController::class, 'getSignedUrl'])
+            ->name('pahani.pdf-url');
+        Route::get('/pahani/pdf-redirect/{pahani}', [PahaniController::class, 'redirectToCloudflare'])
+            ->name('pahani.pdf-redirect');
+ 
+    });
     // routes/web.php
     Route::post('/pahani/presign', [PahaniController::class, 'presign'])->name('pahani.presign');
     Route::post('/pahani/store',   [PahaniController::class, 'store'])->name('pahani.store');
