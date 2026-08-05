@@ -59,205 +59,96 @@ class PahaniController extends Controller
      */
     public function store(Request $request)
     {
-        // dd($request);
-        // ── 1. Validate top-level fields ──────────────────────────────────────
-        $request->validate([
+        $data = $request->validate([
             'mandal'  => ['required', 'string', 'exists:mandals,slug'],
             'village' => ['required', 'string'],
-            'records' => ['required', 'json'],
+            'records' => ['required', 'array', 'min:1'],
         ]);
 
-        $records = json_decode($request->input('records'), true);
-
-        if (empty($records) || !is_array($records)) {
-            logger('Pahani store failed: no records submitted');
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'At least one document record is required.',
-                    'errors'  => ['records' => ['At least one document record is required.']],
-                ], 422);
-            }
-            return back()->withErrors(['records' => 'At least one document record is required.']);
-        }
-
-        // ── 2. Resolve Mandal & Village models ────────────────────────────────
-        $mandal = Mandal::where('slug', $request->mandal)
-            ->where('is_active', true)
-            ->firstOrFail();
-
+        $mandal = Mandal::where('slug', $data['mandal'])->where('is_active', true)->firstOrFail();
         $village = Village::where('mandal_id', $mandal->id)
-            ->where('slug', $request->village)
+            ->where('slug', $data['village'])
             ->where('is_active', true)
             ->firstOrFail();
 
-        // ── 3. Validate each record row ───────────────────────────────────────
-        $allowedDocValues = PahaniDocument::where('is_active', true)
-            ->pluck('value')
-            ->toArray();
+        $allowedDocValues = PahaniDocument::where('is_active', true)->pluck('value')->toArray();
+        $errors = [];
+        $cleaned = [];
 
-        $errors   = [];
-        $cleaned  = [];
-
-        foreach ($records as $i => $row) {
+        foreach ($data['records'] as $i => $row) {
+            $rowNum   = $i + 1;
             $docValue = $row['docValue'] ?? null;
             $physical = strtolower($row['physical'] ?? '');
             $keepFile = (bool) ($row['keepFile'] ?? false);
-            $rowNum   = $i + 1;
+            $r2Key    = $row['r2Key'] ?? null;
 
             if (!in_array($docValue, $allowedDocValues)) {
-                $errors[] = "Row {$rowNum}: Invalid document type '{$docValue}'.";
+                $errors[] = "Row {$rowNum}: Invalid document type.";
                 continue;
             }
-
             if (!in_array($physical, ['yes', 'no'])) {
                 $errors[] = "Row {$rowNum}: Physical document must be 'yes' or 'no'.";
                 continue;
             }
 
-            $uploadedFile = null;
             if ($physical === 'yes') {
-                $uploadedFile = $request->file("files.{$docValue}");
-
-                if (!$uploadedFile && !$keepFile) {
+                // Must have either a freshly uploaded key, or be explicitly keeping the old file
+                if (!$r2Key && !$keepFile) {
                     $errors[] = "Row {$rowNum}: File is required when physical document is 'yes'.";
                     continue;
                 }
-
-                if ($uploadedFile) {
-                    if ($uploadedFile->getMimeType() !== 'application/pdf') {
-                        $errors[] = "Row {$rowNum}: Only PDF files are allowed.";
-                        continue;
-                    }
-                    if ($uploadedFile->getSize() > 5 * 1024 * 1024) {
-                        $errors[] = "Row {$rowNum}: File size must not exceed 5 MB.";
+                // Guard against a forged/mismatched key: it must live under this mandal/village/doc path
+                if ($r2Key) {
+                    $expectedPrefix = "pahani/{$mandal->slug}/{$village->slug}/{$docValue}/";
+                    if (!Str::startsWith($r2Key, $expectedPrefix) || !Storage::disk('r2')->exists($r2Key)) {
+                        $errors[] = "Row {$rowNum}: Uploaded file could not be verified.";
                         continue;
                     }
                 }
             }
 
-            $cleaned[] = [
-                'docValue' => $docValue,
-                'physical' => $physical,
-                'file'     => $uploadedFile,
-                'keepFile' => $keepFile,
+            $cleaned[] = compact('docValue', 'physical', 'r2Key', 'keepFile') + [
+                'fileName' => $row['fileName'] ?? null,
+                'fileSize' => $row['fileSize'] ?? null,
+                'fileMime' => $row['fileMime'] ?? null,
             ];
         }
 
         if (!empty($errors)) {
-            logger('Pahani store validation errors', [
-                'mandal' => $mandal->slug, 'village' => $village->slug, 'errors' => $errors,
-            ]);
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Please fix the errors below.',
-                    'errors'  => $errors,
-                ], 422);
-            }
-            return back()->withErrors($errors)->withInput();
+            return response()->json(['success' => false, 'message' => 'Please fix the errors below.', 'errors' => $errors], 422);
         }
 
-        // ── 4. Save inside a transaction ──────────────────────────────────────
         DB::beginTransaction();
         try {
             foreach ($cleaned as $row) {
-                // Resolve pahani_documents record
                 $pahaniDoc = PahaniDocument::where('value', $row['docValue'])->firstOrFail();
 
-                // // Build file info
-                // $fileName = null;
-                // $filePath = null;
-                // $fileSize = null;
-                // $fileMime = null;
-
-                // if ($row['physical'] === 'yes' && $row['file']) {
-                //     $file = $row['file'];
-
-                //     // R2 object key:
-                //     // pahani/{mandal_slug}/{village_slug}/{docValue}/{uuid}.pdf
-                //     $r2Key = implode('/', [
-                //         'pahani',
-                //         $mandal->slug,
-                //         $village->slug,
-                //         $row['docValue'],
-                //         Str::uuid() . '.pdf',
-                //     ]);
-
-                //     // Upload to Cloudflare R2 (configured as disk 'r2' in filesystems.php)
-                //     Storage::disk('r2')->put($r2Key, file_get_contents($file->getRealPath()));
-
-                //     $fileName = $file->getClientOriginalName();
-                //     $filePath = $r2Key;
-                //     $fileSize = $file->getSize();
-                //     $fileMime = $file->getMimeType();
-                // }
-
-                // // Upsert — if the same village+document was submitted before, update it
-                // Pahani::updateOrCreate(
-                //     [
-                //         'village_id'          => $village->id,
-                //         'pahani_document_id'  => $pahaniDoc->id,
-                //     ],
-                //     [
-                //         'mandal_id'           => $mandal->id,
-                //         'document_name'       => $pahaniDoc->label,
-                //         'type'                => $pahaniDoc->type,
-                //         'physical_document'   => $row['physical'],
-                //         'file_name'           => $fileName,
-                //         'file_path'           => $filePath,
-                //         'file_size'           => $fileSize,
-                //         'file_mime'           => $fileMime,
-                //         'disk'                => 'r2',
-                //         'uploaded_by'         => auth()->id() ?? 'guest',
-                //         'uploaded_ip'         => $request->ip(),
-                //     ]
-                // );
-
-                $fileName = null;
-                $filePath = null;
-                $fileSize = null;
-                $fileMime = null;
-            
-                // Check if there's an existing record to potentially keep its file
                 $existing = Pahani::where('village_id', $village->id)
                     ->where('pahani_document_id', $pahaniDoc->id)
                     ->first();
-            
-                if ($row['physical'] === 'yes') {
-                    if ($row['file']) {
-                        // New file uploaded — store to R2
-                        $file  = $row['file'];
-                        $r2Key = implode('/', [
-                            'pahani', $mandal->slug, $village->slug,
-                            $row['docValue'], Str::uuid() . '.pdf',
-                        ]);
-                        Storage::disk('r2')->put($r2Key, file_get_contents($file->getRealPath()));
 
-                        // Delete old R2 file if replacing
-                        if ($existing?->file_path) {
+                $fileName = $filePath = $fileSize = $fileMime = null;
+
+                if ($row['physical'] === 'yes') {
+                    if ($row['r2Key']) {
+                        // New file already sitting in R2 — delete the old one if replacing
+                        if ($existing?->file_path && $existing->file_path !== $row['r2Key']) {
                             Storage::disk('r2')->delete($existing->file_path);
                         }
-            
-                        $fileName = $file->getClientOriginalName();
-                        $filePath = $r2Key;
-                        $fileSize = $file->getSize();
-                        $fileMime = $file->getMimeType();
-            
+                        $fileName = $row['fileName'];
+                        $filePath = $row['r2Key'];
+                        $fileSize = $row['fileSize'];
+                        $fileMime = $row['fileMime'];
                     } elseif ($row['keepFile'] && $existing) {
-                        // No new upload — keep the existing file info untouched
                         $fileName = $existing->file_name;
                         $filePath = $existing->file_path;
                         $fileSize = $existing->file_size;
                         $fileMime = $existing->file_mime;
                     }
-                    // else: physical=yes but no file and no keepFile — validation should have caught this
-                }
-                // physical=no: file columns stay null (delete old file from R2 if any)
-                elseif ($existing?->file_path) {
+                } elseif ($existing?->file_path) {
                     Storage::disk('r2')->delete($existing->file_path);
                 }
-            
+
                 Pahani::updateOrCreate(
                     ['village_id' => $village->id, 'pahani_document_id' => $pahaniDoc->id],
                     [
@@ -274,46 +165,57 @@ class PahaniController extends Controller
                         'uploaded_ip'       => $request->ip(),
                     ]
                 );
-            
-                // Also add 'keepFile' to the $cleaned array in step 3:
-                $cleaned[] = [
-                    'docValue' => $docValue,
-                    'physical' => $physical,
-                    'file'     => $uploadedFile,
-                    'keepFile' => (bool) ($row['keepFile'] ?? false),
-                ];
-            
-                // And relax the file validation to allow keepFile=true with no new upload:
-                if ($physical === 'yes' && !$uploadedFile) {
-                    $keepFile = (bool)($row['keepFile'] ?? false);
-                    if (!$keepFile) {
-                        // Check if there's already a saved file for this doc in this village
-                        $existingRec = Pahani::where('village_id', $village->id)->first(); // resolve village_id here if needed
-                        // Simpler: just skip the error if keepFile is true
-                        $errors[] = "Row {$rowNum}: File is required when physical document is 'yes'.";
-                        continue;
-                    }
-                }
             }
 
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            $msg = 'Submission failed. Error: ' . ($e->getPrevious()?->getMessage() ?? $e->getMessage());
-            Log::error('Pahani store failed' . $msg);
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => $msg], 500);
-            }
-            return back()->withErrors(['submit' => $msg])->withInput();
+            Log::error('Pahani store failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Submission failed. Please try again.'], 500);
         }
 
-        $msg = 'Pahani records saved successfully for ' . $village->name . ', ' . $mandal->name . '.';
-        if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'message' => $msg]);
+        return response()->json([
+            'success' => true,
+            'message' => "Pahani records saved successfully for {$village->name}, {$mandal->name}.",
+        ]);
+    }
+
+    public function presign(Request $request)
+    {
+        $request->validate([
+            'mandal'   => ['required', 'string', 'exists:mandals,slug'],
+            'village'  => ['required', 'string'],
+            'docValue' => ['required', 'string', 'exists:pahani_documents,value'],
+            'fileMime' => ['required', 'string'],
+        ]);
+
+        $mandal = Mandal::where('slug', $request->mandal)->where('is_active', true)->firstOrFail();
+        $village = Village::where('mandal_id', $mandal->id)
+            ->where('slug', $request->village)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        if ($request->fileMime !== 'application/pdf') {
+            return response()->json(['success' => false, 'message' => 'Only PDF files are allowed.'], 422);
         }
 
-        return redirect()->route('pahani.index')
-            ->with('success', 'Pahani records saved successfully for ' . $village->name . ', ' . $mandal->name . '.');
+        $key = implode('/', [
+            'pahani', $mandal->slug, $village->slug,
+            $request->docValue, Str::uuid() . '.pdf',
+        ]);
+
+        $signed = Storage::disk('r2')->temporaryUploadUrl(
+            $key,
+            now()->addMinutes(20),
+            ['ContentType' => $request->fileMime]
+        );
+
+        return response()->json([
+            'success' => true,
+            'key'     => $key,
+            'url'     => $signed['url'],
+            'headers' => $signed['headers'] ?? ['Content-Type' => $request->fileMime],
+        ]);
     }
 
     // ── VIEW (records display page) ───────────────────────────────────────────

@@ -17,7 +17,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/pahani/view-pdf/{pahani}', [PahaniController::class, 'viewPdfPage'])->name('pahani.view-pdf');
     Route::get('/pahani/pdf-source/{pahani}', [PahaniController::class, 'pdfSource'])->name('pahani.pdf-source');
 
-    Route::post('/store', [PahaniController::class, 'store'])->name('pahani.store');
+    // routes/web.php
+    Route::post('/pahani/presign', [PahaniController::class, 'presign'])->name('pahani.presign');
+    Route::post('/pahani/store',   [PahaniController::class, 'store'])->name('pahani.store');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
