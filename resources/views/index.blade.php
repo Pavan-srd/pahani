@@ -100,6 +100,12 @@
     .btn-danger-sm{border:none;background:none;cursor:pointer;color:#c0392b;font-size:16px;padding:0 4px;line-height:1}
     .btn-danger-sm:hover{color:#7f0000}
 
+    /* ── LOCKED/DISABLED ROW ── */
+    .doc-table tr.row-locked{background:#f0f0f0 !important;opacity:0.8}
+    .doc-table tr.row-locked td{color:#888}
+    .locked-badge{display:inline-flex;align-items:center;gap:4px;background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:4px 8px;border-radius:2px;font-size:9px;margin-top:4px}
+    .btn-disabled{opacity:0.4;cursor:not-allowed !important;pointer-events:none}
+
     /* ── BUTTONS ── */
     .add-row-btn{background:#154360;color:white;border:none;padding:7px 16px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:2px;display:flex;align-items:center;gap:6px;margin-top:10px;text-transform:uppercase;letter-spacing:0.3px;transition:background 0.15s}
     .add-row-btn:hover{background:#1a6fa8}
@@ -769,54 +775,94 @@ function renderTable() {
   state.rows.forEach(row => {
     const opt = ALL_OPTIONS.find(o => o.value === row.value);
     const tr  = document.createElement('tr');
-
-    // ── Col 1: Document Name dropdown ──────────────────────────────
-    const tdName = document.createElement('td');
-    const sel = document.createElement('select');
-    sel.id = 'docsel-' + row.id;
-    sel.style.cssText = 'font-size:11px;padding:5px 7px;width:100%';
-    const ph = document.createElement('option');
-    ph.value = ''; ph.textContent = '— Select Document —';
-    sel.appendChild(ph);
-    getAvailableOptions(row.value).forEach(o => {
-      const op = document.createElement('option');
-      op.value = o.value; op.textContent = o.label;
-      if (o.value === row.value) op.selected = true;
-      sel.appendChild(op);
-    });
-    sel.addEventListener('change', () => onDocChange(row.id, sel));
-    tdName.appendChild(sel);
-    if (opt?.desc) {
-      const d = document.createElement('div');
-      d.className = 'doc-desc'; d.style.marginTop = '3px';
-      d.textContent = opt.desc;
-      tdName.appendChild(d);
+    
+    // Check if this row is LOCKED (has pahaniId and not uploaded by current user)
+    const isLocked = row.pahaniId && row.uploaded_by !== CURRENT_USER_ID;
+    if (isLocked) {
+      tr.className = 'row-locked';
+      tr.id = 'row-' + row.id;
     }
-    // Show pahaniId badge if editing existing
-    if (row.pahaniId) {
-      const badge = document.createElement('div');
-      badge.style.cssText = 'font-size:9px;color:#1565c0;margin-top:3px';
-      badge.textContent = '✎ Editing existing record #' + row.pahaniId;
-      tdName.appendChild(badge);
+
+    // ── Col 1: Document Name ──────────────────────────────
+    const tdName = document.createElement('td');
+    
+    if (isLocked) {
+      // LOCKED: Show as plain text (not editable)
+      const nameDiv = document.createElement('div');
+      nameDiv.style.cssText = 'font-weight:500;color:#333';
+      nameDiv.textContent = opt?.label || row.value;
+      tdName.appendChild(nameDiv);
+      
+      if (opt?.desc) {
+        const d = document.createElement('div');
+        d.className = 'doc-desc';
+        d.textContent = opt.desc;
+        tdName.appendChild(d);
+      }
+      
+      const lockBadge = document.createElement('div');
+      lockBadge.className = 'locked-badge';
+      lockBadge.innerHTML = '🔒 Locked - Uploaded by another user';
+      tdName.appendChild(lockBadge);
+    } else {
+      // EDITABLE: Show as dropdown
+      const sel = document.createElement('select');
+      sel.id = 'docsel-' + row.id;
+      sel.style.cssText = 'font-size:11px;padding:5px 7px;width:100%';
+      const ph = document.createElement('option');
+      ph.value = ''; ph.textContent = '— Select Document —';
+      sel.appendChild(ph);
+      getAvailableOptions(row.value).forEach(o => {
+        const op = document.createElement('option');
+        op.value = o.value; op.textContent = o.label;
+        if (o.value === row.value) op.selected = true;
+        sel.appendChild(op);
+      });
+      sel.addEventListener('change', () => onDocChange(row.id, sel));
+      tdName.appendChild(sel);
+      
+      if (opt?.desc) {
+        const d = document.createElement('div');
+        d.className = 'doc-desc'; d.style.marginTop = '3px';
+        d.textContent = opt.desc;
+        tdName.appendChild(d);
+      }
+      
+      // Show badge if editing existing (but not locked)
+      if (row.pahaniId) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:9px;color:#27ae60;margin-top:3px';
+        badge.textContent = '✎ Editing existing record #' + row.pahaniId;
+        tdName.appendChild(badge);
+      }
     }
 
     // ── Col 2: Physical Document radio ────────────────────────────
     const tdPhys = document.createElement('td');
     if (row.value) {
-      const rg = document.createElement('div');
-      rg.className = 'radio-group';
-      ['Yes','No'].forEach(v => {
-        const lbl = document.createElement('label');
-        lbl.className = 'radio-label';
-        const inp = document.createElement('input');
-        inp.type = 'radio'; inp.name = 'phys_'+row.id; inp.value = v;
-        if (row.physical === v) inp.checked = true;
-        inp.addEventListener('change', () => onPhysicalChange(row.id, v));
-        lbl.appendChild(inp);
-        lbl.appendChild(document.createTextNode(' '+v));
-        rg.appendChild(lbl);
-      });
-      tdPhys.appendChild(rg);
+      if (isLocked) {
+        // LOCKED: Show as plain text (not editable)
+        const physDiv = document.createElement('div');
+        physDiv.style.cssText = 'font-weight:500;color:#333';
+        physDiv.textContent = row.physical;
+        tdPhys.appendChild(physDiv);
+      } else {
+        // EDITABLE: Show as radio buttons
+        const rg = document.createElement('div');
+        rg.className = 'radio-group';
+        ['Yes','No'].forEach(v => {
+          const lbl = document.createElement('label');
+          lbl.className = 'radio-label';
+          const inp = document.createElement('input');
+          inp.type = 'radio'; inp.name = 'phys_'+row.id; inp.value = v;
+          if (row.physical === v) inp.checked = true;
+          inp.addEventListener('change', () => onPhysicalChange(row.id, v));
+          lbl.appendChild(inp);
+          lbl.appendChild(document.createTextNode(' '+v));
+          rg.appendChild(lbl);
+        });
+        tdPhys.appendChild(rg);
+      }
     } else {
       tdPhys.innerHTML = '<span style="color:#aaa;font-size:10px">— Select doc first —</span>';
     }
@@ -916,9 +962,14 @@ function renderTable() {
     tdAction.style.textAlign = 'center';
     const del = document.createElement('button');
     del.className = 'btn-danger-sm';
-    del.title = 'Remove row';
+    del.title = isLocked ? 'Cannot delete locked documents' : 'Remove row';
     del.innerHTML = '✕';
-    del.onclick = () => removeRow(row.id);
+    if (isLocked) {
+      del.classList.add('btn-disabled');
+      del.disabled = true;
+    } else {
+      del.onclick = () => removeRow(row.id);
+    }
     tdAction.appendChild(del);
 
     tr.appendChild(tdName);
