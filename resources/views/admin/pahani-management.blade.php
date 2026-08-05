@@ -73,11 +73,18 @@
     .empty-state .es-icon{font-size:40px;margin-bottom:10px;opacity:0.5}
 
     /* ── PAGINATION ── */
-    .pagination{display:flex;gap:4px;justify-content:center;padding:16px;font-size:11px}
-    .pagination a,.pagination span{padding:5px 10px;border:1px solid #b0c4d8;border-radius:2px;background:white;color:#154360;text-decoration:none}
-    .pagination a:hover{background:#eaf2f8;border-color:#154360}
-    .pagination .active{background:#154360;color:white;border-color:#154360}
-    .pagination .disabled{opacity:0.5;cursor:not-allowed}
+    .pagination{display:flex;gap:6px;justify-content:center;padding:20px;font-size:11px;flex-wrap:wrap;align-items:center}
+    .pagination > *{display:inline-flex;align-items:center;justify-content:center}
+    .pagination a,.pagination span{min-width:36px;height:36px;padding:6px 10px;border:1px solid #b0c4d8;border-radius:3px;background:white;color:#154360;text-decoration:none;font-weight:500;transition:all 0.15s}
+    .pagination a:hover:not(.disabled){background:#eaf2f8;border-color:#154360;color:#1a6fa8;box-shadow:0 2px 4px rgba(21,67,96,0.1)}
+    .pagination .active{background:#154360;color:white;border-color:#154360;font-weight:bold;box-shadow:0 2px 4px rgba(21,67,96,0.15)}
+    .pagination .disabled{opacity:0.5;cursor:not-allowed;background:#f5f5f5;color:#999;border-color:#ddd}
+    /* Custom arrow styling */
+    .pagination [rel="prev"],.pagination [rel="next"]{min-width:38px;height:38px;font-size:16px;font-weight:bold;padding:8px}
+    .pagination [rel="prev"]::before{content:'←';margin-right:4px}
+    .pagination [rel="next"]::after{content:'→';margin-left:4px}
+    .pagination [rel="prev"]:hover,.pagination [rel="next"]:hover{background:#154360;color:white;border-color:#154360}
+    .pagination .disabled[rel="prev"],.pagination .disabled[rel="next"]{background:#f5f5f5;color:#999}
 
     /* ── TOAST ── */
     .toast{position:fixed;top:20px;right:20px;background:#154360;color:white;padding:10px 18px;border-left:4px solid #f39c12;font-size:12px;border-radius:2px;z-index:9999;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
@@ -218,9 +225,34 @@
       </div>
 
       {{-- ── PAGINATION ── --}}
+      @if($pahanis->hasPages())
       <div style="margin-top:16px">
-        {{ $pahanis->links() }}
+        <div class="pagination">
+          {{-- Previous Page Link --}}
+          @if($pahanis->onFirstPage())
+            <span class="disabled" aria-disabled="true" rel="prev">← Previous</span>
+          @else
+            <a href="{{ $pahanis->previousPageUrl() }}" rel="prev">← Previous</a>
+          @endif
+
+          {{-- Pagination Elements --}}
+          @foreach($pahanis->getUrlRange(1, $pahanis->lastPage()) as $page => $url)
+            @if($page == $pahanis->currentPage())
+              <span class="active" aria-current="page">{{ $page }}</span>
+            @else
+              <a href="{{ $url }}">{{ $page }}</a>
+            @endif
+          @endforeach
+
+          {{-- Next Page Link --}}
+          @if($pahanis->hasMorePages())
+            <a href="{{ $pahanis->nextPageUrl() }}" rel="next">Next →</a>
+          @else
+            <span class="disabled" aria-disabled="true" rel="next">Next →</span>
+          @endif
+        </div>
       </div>
+      @endif
 
     @else
       <div class="empty-state">
