@@ -119,7 +119,13 @@
     .toast.show{display:block}
     .toast.error{border-left-color:#c0392b;background:#7f0000}
 
-    /* ── UPLOAD PROGRESS BAR (replaces submit-overlay) ── */
+    /* ── SUBMIT OVERLAY ── */
+    #submit-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8000;align-items:center;justify-content:center}
+    #submit-overlay.show{display:flex}
+    .submit-box{background:white;border-left:4px solid #f39c12;padding:24px 32px;border-radius:2px;text-align:center;font-size:12px;color:#154360}
+    .submit-box .big-spinner{width:32px;height:32px;border:3px solid #d0dde8;border-top-color:#154360;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px}
+
+    /* ── UPLOAD PROGRESS BAR (TOP OF PAGE) ── */
     #upload-progress-container{
       display:none;
       position:fixed;
@@ -225,559 +231,729 @@
       color:#666;
       font-size:9px;
     }
-
-    /* ── HIDDEN SUBMIT OVERLAY ── */
-    #submit-overlay{display:none}
-    
-    /* scroll-friendly progress container on mobile */
     @media (max-width:600px){
       .upload-progress-rows{
         grid-template-columns:1fr;
       }
     }
+    .page-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #0b5ed7;
+        padding: 0 15px;
+    }
+
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .nav-right {
+        margin-left: auto;
+    }
+
+    .logout-btn {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: .2s;
+    }
+
+    .logout-btn:hover {
+        background: #bb2d3b;
+    }
+
+    .upload-progress-wrap {
+      position: relative;
+      height: 16px;
+      background: #eee;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .upload-progress-bar {
+      height: 100%;
+      background: #2ecc71;
+      width: 0%;
+      transition: width .15s ease;
+    }
+    .upload-progress-text {
+      position: absolute;
+      top: 0; left: 6px;
+      font-size: 9px;
+      line-height: 16px;
+      color: #333;
+    }
+
+    @media(max-width:600px){.form-row{grid-template-columns:1fr}.gov-title-block .dept-name{font-size:14px}}
   </style>
 </head>
 <body>
 <div class="portal-wrap">
 
-  <!-- ════════════════════════════════════════════════════════════
-       GOVERNMENT HEADER
-  ════════════════════════════════════════════════════════════ -->
+  <div class="toast" id="toast"></div>
+
+  <!-- UPLOAD PROGRESS BAR (TOP OF PAGE) -->
+  <div id="upload-progress-container">
+    <div class="upload-progress-content">
+      <div class="upload-progress-header">
+        <div class="upload-progress-spinner"></div>
+        <div class="upload-progress-text">
+          Uploading Files... <span class="percent"><span id="overall-progress-pct">0</span>%</span>
+        </div>
+      </div>
+      <div class="upload-progress-main-bar">
+        <div class="upload-progress-main-fill" id="overall-progress-bar" style="width:0%"></div>
+      </div>
+      <div class="upload-progress-rows" id="upload-progress-rows-container"></div>
+    </div>
+  </div>
+
+  <div id="submit-overlay">
+    <div class="submit-box">
+      <div class="big-spinner"></div>
+      Saving records to database & uploading files…<br>
+      <span style="font-size:10px;color:#888;margin-top:4px;display:block">Please do not close this tab</span>
+    </div>
+  </div>
+  @php
+    $currentUserId = auth()->id();
+    $userMandalIds = auth()->user()?->mandals()
+      ->select('mandals.*')
+      ->pluck('mandals.id')
+      ->toArray() ?? [];
+  @endphp
+
+  {{-- ── HEADER ── --}}
   <div class="gov-header">
     <div class="gov-top-bar">
-      <span>🇮🇳 India | Ministry of Land Resources</span>
-      <span>📞 Help: 1-800-PAHANI-1</span>
+      <span><span class="status-dot"></span>Portal Status: Active &nbsp;|&nbsp; Last Updated: {{ date('d-M-Y') }}</span>
     </div>
     <div class="gov-logo-row">
-      <div class="emblem">🏛️</div>
+      <div class="emblem">⚖️</div>
       <div class="gov-title-block">
-        <div class="dept-name">Pahani — Digital Land Records</div>
-        <div class="dept-sub">Telangana State Land Records Management System</div>
+        <div class="dept-name">Land Record Digitalization</div>
+        <div class="dept-sub">Sangareddy &nbsp;|&nbsp; Revenue Department</div>
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      🔒 Secure Document Upload Portal | Version 2.0
+      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District ({{ auth()->user()?->name }}, {{auth()->user()->getMandal?->name}})
     </div>
   </div>
 
-  <!-- NAVIGATION -->
+  {{-- ── NAV ── --}}
   <div class="page-nav">
-    <div class="nav-left">
-      <a href="#" class="nav-item active">📋 Upload Documents</a>
-      <a href="#" class="nav-item">📊 View Records</a>
-      <a href="#" class="nav-item">⚙️ Settings</a>
-    </div>
-    <div class="nav-right">
-      <form action="{{ route('logout') }}" method="POST" style="display:inline">
-        @csrf
-        <button type="submit" class="logout-btn">🚪 Logout</button>
-      </form>
-    </div>
+      <div class="nav-left">
+          <a class="nav-item active" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
+          <a class="nav-item" href="{{ route('pahani.view') }}">📋 View Records</a>
+          <a class="nav-item" href="#">🔍 Search</a>
+          <a class="nav-item" href="#">📊 Reports</a>
+          <a class="nav-item" href="#">⚙️ Settings</a>
+      </div>
+
+      <div class="nav-right">
+          <form id="logoutForm" method="POST" action="{{ route('logout') }}">
+              @csrf
+              <button type="button" class="logout-btn" onclick="confirmLogout()">
+                  🚪 Logout
+              </button>
+          </form>
+      </div>
   </div>
 
-  <!-- MAIN BODY -->
   <div class="main-body">
-    <div class="breadcrumb">
-      <a href="#">Home</a> / <a href="#">Documents</a> / <span style="color:#999">Upload</span>
-      <span style="margin-left:auto;display:flex;align-items:center;gap:4px">
-        <span class="status-dot"></span> System Online
-      </span>
-    </div>
-
-    <!-- ════════════════════════════════════════════════════════════
-         UPLOAD PROGRESS BAR (NEW — replaces submit-overlay)
-    ════════════════════════════════════════════════════════════ -->
-    <div id="upload-progress-container">
-      <div class="upload-progress-content">
-        <div class="upload-progress-header">
-          <div class="upload-progress-spinner"></div>
-          <div class="upload-progress-text">
-            Uploading Files... <span class="percent"><span id="overall-progress-pct">0</span>%</span>
-          </div>
-        </div>
-        <div class="upload-progress-main-bar">
-          <div class="upload-progress-main-fill" id="overall-progress-bar" style="width:0%">
-            <span id="overall-progress-label"></span>
-          </div>
-        </div>
-        <div class="upload-progress-rows" id="upload-progress-rows-container"></div>
-      </div>
-    </div>
 
     <div class="page-heading">
-      <h2>📄 Upload Land Records</h2>
+      <h2>📑 Pahani — Upload Form</h2>
+      <div style="font-size:10px;color:#666">Select Mandal &amp; Village, then add document records below</div>
     </div>
+
+    <div class="breadcrumb">
+      <a href="#">Home</a> › <a href="#">Revenue Records</a> › <a href="#">Pahani Digitization</a> › Upload Form
+    </div>
+
+    {{-- ── SUCCESS / ERROR MESSAGES ── --}}
+    @if(session('success'))
+      <div class="alert alert-success">✔ {{ session('success') }}</div>
+    @endif
+    @if(session('submit'))
+      <div class="alert alert-error"> {{ session('submit') }}</div>
+    @endif
+    @if($errors->any())
+      <div class="alert alert-error">
+        <strong>Please fix the following errors:</strong>
+        <ul style="margin-top:5px;padding-left:16px">
+          @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+          @endforeach
+        </ul>
+      </div>
+    @endif
 
     <div class="notice-bar">
-      ℹ️ <strong>Note:</strong> Only PDF files (.pdf) up to 50 MB are accepted. All uploads are secure and encrypted.
+      ℹ️&nbsp;<span>Select Mandal &amp; Village to automatically load any existing records. You can then add new documents or re-upload files for existing ones. Submitting will <strong>update</strong> existing records and <strong>add</strong> new ones.</span>
     </div>
 
-    <!-- ════════════════════════════════════════════════════════════
-         FORM SECTION
-    ════════════════════════════════════════════════════════════ -->
-    <form id="pahani-form">
-      @csrf
-
-      <!-- Section 1: Location Selection -->
-      <div class="section-card">
-        <div class="section-header">
-          <span class="sec-num">1</span>
-          <span>📍 Select Location</span>
+    {{-- ── SECTION 1: MANDAL & VILLAGE ── --}}
+    <div class="section-card">
+      <div class="section-header">
+        <span class="sec-num">1</span>
+        Revenue Mandal &amp; Village Details
+      </div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="field-group">
+            <label class="field-label" for="mandal-select">Mandal <span class="req">*</span></label>
+            <div class="field-hint">Select the Mandal jurisdiction</div>
+            <select id="mandal-select" onchange="onMandalChange()">
+              <option value="">— Select Mandal —</option>
+              @foreach($mandals as $mandal)
+                {{-- NEW: Check if user is assigned to this mandal --}}
+                @php
+                  $isAssigned = in_array($mandal->id, $userMandalIds);
+                @endphp
+                <option value="{{ $mandal->slug }}"
+                  data-id="{{ $mandal->id }}"
+                  {{ old('mandal') == $mandal->slug ? 'selected' : '' }}
+                  {{ !$isAssigned ? 'disabled' : '' }}>
+                  {{ $mandal->name }}
+                  @if(!$isAssigned)
+                    (Not assigned)
+                  @endif
+                </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="village-select">Village / Revenue Village <span class="req">*</span></label>
+            <div class="field-hint">Select village within the Mandal</div>
+            <select id="village-select" disabled onchange="onVillageChange()">
+              <option value="">— First Select Mandal —</option>
+            </select>
+            <div class="loading-bar" id="village-loading">
+              <div class="spinner"></div> Loading villages…
+            </div>
+          </div>
         </div>
-        <div class="section-body">
-          <div class="form-row">
-            <div class="field-group">
-              <label class="field-label">District <span class="req">*</span></label>
-              <select id="district-select">
-                <option value="">— Select District —</option>
-                <option value="rangareddy">Rangareddy</option>
-                <option value="medchal">Medchal-Malkajgiri</option>
-                <option value="telangana">Telangana</option>
-              </select>
-            </div>
-            <div class="field-group">
-              <label class="field-label">Mandal <span class="req">*</span></label>
-              <select id="mandal-select" disabled>
-                <option value="">— First Select District —</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="field-group">
-              <label class="field-label">Village <span class="req">*</span></label>
-              <select id="village-select" disabled>
-                <option value="">— First Select Mandal —</option>
-              </select>
-            </div>
-            <div class="field-group">
-              <label class="field-label">Survey Number</label>
-              <select id="survey-select">
-                <option value="">— Optional —</option>
-              </select>
-            </div>
-          </div>
+
+        {{-- Loading indicator for existing records --}}
+        <div class="loading-bar" id="records-loading">
+          <div class="spinner"></div> Loading existing records for this village…
         </div>
       </div>
+    </div>
 
-      <!-- Section 2: Document Upload -->
-      <div class="section-card">
-        <div class="section-header">
-          <span class="sec-num">2</span>
-          <span>📑 Add & Upload Documents</span>
-        </div>
-        <div class="section-body">
-          <p style="font-size:10px;color:#666;margin-bottom:10px">Add each document row-by-row below, upload a PDF for any "Physical Document = Yes", then submit.</p>
-
-          <!-- Document Table -->
-          <div style="overflow-x:auto">
-            <table class="doc-table">
-              <thead>
-                <tr>
-                  <th style="width:20%">Document Type</th>
-                  <th style="width:12%">Physical Doc?</th>
-                  <th style="width:30%">Upload PDF</th>
-                  <th style="width:20%">Status</th>
-                  <th style="width:8%">Del</th>
-                </tr>
-              </thead>
-              <tbody id="doc-table-body">
-              </tbody>
-            </table>
-          </div>
-
-          <button type="button" class="add-row-btn" id="add-row-btn" onclick="addRow()">
-            ➕ Add Document Row
-          </button>
-          <div class="row-info">Max 10 documents per submission. Each file: max 50 MB (PDF only).</div>
-
-          <!-- Existing Records Info -->
-          <div id="existing-info" style="display:none;margin-top:12px">
-            <div class="existing-badge">
-              <span class="dot"></span>
-              Previously uploaded documents found
-            </div>
-            <p style="font-size:10px;color:#666;margin-top:6px">
-              You can re-upload to replace or keep existing files. The system will auto-detect and skip duplicates.
-            </p>
-          </div>
-        </div>
+    {{-- ── SECTION 2: DOCUMENTS ── --}}
+    <div class="section-card">
+      <div class="section-header">
+        <span class="sec-num">2</span>
+        Pahani Records — Core Documents &amp; Year-wise Records
       </div>
+      <div class="section-body">
 
-      <!-- Section 3: Review & Submit -->
-      <div class="section-card">
-        <div class="section-header">
-          <span class="sec-num">3</span>
-          <span>✔️ Review & Submit</span>
-        </div>
-        <div class="section-body">
-          <p style="font-size:11px;color:#666;margin-bottom:12px">
-            Click "Submit" to start uploading files in parallel. A progress bar will show real-time upload status.
-          </p>
-          <div class="form-footer">
-            <div style="font-size:10px;color:#666">
-              Submission will upload all files to secure cloud storage, then save metadata to the database.
-            </div>
-            <div style="display:flex;gap:8px">
-              <button type="button" class="btn-secondary" onclick="clearRows()">↻ Clear All</button>
-              <button type="button" class="btn-primary" id="submit-btn" onclick="submitForm()">✓ Submit & Upload</button>
-            </div>
-          </div>
-        </div>
+        <div id="existing-info" style="display:none"></div>
+
+        <table class="doc-table" id="doc-table">
+          <thead>
+            <tr>
+              <th style="width:30%">Document Name</th>
+              <th style="width:20%">Physical Document</th>
+              <th>Upload PDF</th>
+              <th style="width:8%;text-align:center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="doc-tbody"></tbody>
+        </table>
+
+        <button class="add-row-btn" id="add-row-btn" onclick="addRow()">
+          + Add Document Record
+        </button>
+        <div class="row-info" id="row-info">No records added yet. Click "Add Document Record" to begin.</div>
       </div>
-    </form>
-  </div>
-</div>
+    </div>
 
-<!-- ════════════════════════════════════════════════════════════
-     TOAST NOTIFICATION
-════════════════════════════════════════════════════════════ -->
-<div class="toast" id="toast"></div>
+    <div class="form-footer">
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" onclick="resetForm()">🔄 Reset Form</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:10px;color:#666">Fields marked <span style="color:#c0392b;font-weight:bold">*</span> are mandatory</span>
+        <button class="btn-primary" id="submit-btn" onclick="submitForm()">✔ Submit &amp; Register</button>
+      </div>
+    </div>
 
-<!-- ════════════════════════════════════════════════════════════
-     HIDDEN SUBMIT OVERLAY (kept for backwards compatibility, but unused)
-════════════════════════════════════════════════════════════ -->
-<div id="submit-overlay">
-  <div class="submit-box">
-    <div class="big-spinner"></div>
-    Saving records to database...
-  </div>
-</div>
+  </div>{{-- /main-body --}}
 
+</div>{{-- /portal-wrap --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+  const CURRENT_USER_ID = {{ $currentUserId }};
+  function confirmLogout() {
+      Swal.fire({
+          title: 'Logout?',
+          text: 'Are you sure you want to logout?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Yes, Logout',
+          cancelButtonText: 'Cancel'
+      }).then((result) => {
+          if (result.isConfirmed) {
+              document.getElementById('logoutForm').submit();
+          }
+      });
+  }
 /* ══════════════════════════════════════════════════════════════════
-   STATE MANAGEMENT
+   MASTER DATA from DB (passed by controller)
+══════════════════════════════════════════════════════════════════ */
+const DB_MANDALS   = @json($mandals->map(fn($m) => ['id'=>$m->id,'name'=>$m->name,'slug'=>$m->slug]));
+const DB_DOCUMENTS = @json($documents);  // [{id, value, label, type, description}, …]
+
+// Build the ALL_OPTIONS array JS side from DB data
+const ALL_OPTIONS = DB_DOCUMENTS.map(d => ({
+  id:    d.id,
+  value: d.value,
+  label: d.label,
+  type:  d.type,
+  desc:  d.description ?? ''
+}));
+
+/* ══════════════════════════════════════════════════════════════════
+   STATE
 ══════════════════════════════════════════════════════════════════ */
 const state = {
-  rows: [],
-  files: {}
+  rows:       [],     // { id, value, physical, fileName, existingFile, existingFileName, pahaniId }
+  usedValues: new Set(),
+  files:      {},     // rowId → File object
 };
 
 /* ══════════════════════════════════════════════════════════════════
-   DISTRICT → MANDAL → VILLAGE CASCADE
+   MANDAL CHANGE — fetch villages via AJAX
 ══════════════════════════════════════════════════════════════════ */
-const DATA = {
-  rangareddy: {
-    mandals: ['Tandur', 'Vikarabad', 'Kanakal'],
-    villages: {
-      'Tandur': ['Tandur Village', 'Shadnagar', 'Moinabad'],
-      'Vikarabad': ['Vikarabad Town', 'Tandur', 'Tandur'],
-      'Kanakal': ['Kanakal', 'Tandur', 'Tandur']
-    }
-  },
-  medchal: {
-    mandals: ['Medchal', 'Malkajgiri', 'Tandur'],
-    villages: {
-      'Medchal': ['Medchal', 'Mominpet', 'Tandur'],
-      'Malkajgiri': ['Malkajgiri', 'Tandur', 'Tandur'],
-      'Tandur': ['Tandur', 'Tandur', 'Tandur']
-    }
-  },
-  telangana: {
-    mandals: ['Tandur', 'Tandur', 'Tandur'],
-    villages: {
-      'Tandur': ['Tandur', 'Tandur', 'Tandur']
-    }
-  }
-};
+function onMandalChange() {
+  const mandalSel = document.getElementById('mandal-select');
+  const villageSel = document.getElementById('village-select');
+  const mandalId  = mandalSel.options[mandalSel.selectedIndex]?.dataset?.id;
 
-document.getElementById('district-select').addEventListener('change', function() {
-  const ds = document.getElementById('district-select');
-  const ms = document.getElementById('mandal-select');
-  const vs = document.getElementById('village-select');
-
-  const district = ds.value;
-  if (!district || !DATA[district]) {
-    ms.innerHTML = '<option value="">— First Select District —</option>';
-    ms.disabled = true;
-    vs.innerHTML = '<option value="">— First Select Mandal —</option>';
-    vs.disabled = true;
-    clearRows();
-    document.getElementById('existing-info').style.display = 'none';
-    return;
-  }
-
-  const mandals = DATA[district].mandals;
-  ms.innerHTML = '<option value="">— Select Mandal —</option>' + mandals.map(m => `<option value="${m}">${m}</option>`).join('');
-  ms.disabled = false;
-  vs.innerHTML = '<option value="">— First Select Mandal —</option>';
-  vs.disabled = true;
+  villageSel.innerHTML = '<option value="">— Select Village —</option>';
+  villageSel.disabled  = true;
   clearRows();
   document.getElementById('existing-info').style.display = 'none';
-});
 
-document.getElementById('mandal-select').addEventListener('change', function() {
-  const ds = document.getElementById('district-select');
-  const ms = document.getElementById('mandal-select');
-  const vs = document.getElementById('village-select');
+  if (!mandalId) return;
 
-  const district = ds.value;
-  const mandal = ms.value;
+  document.getElementById('village-loading').classList.add('show');
 
-  if (!mandal || !DATA[district] || !DATA[district].villages[mandal]) {
-    vs.innerHTML = '<option value="">— First Select Mandal —</option>';
-    vs.disabled = true;
-    clearRows();
-    document.getElementById('existing-info').style.display = 'none';
-    return;
-  }
-
-  const villages = DATA[district].villages[mandal];
-  vs.innerHTML = '<option value="">— Select Village —</option>' + villages.map(v => `<option value="${v}">${v}</option>`).join('');
-  vs.disabled = false;
-  clearRows();
-  document.getElementById('existing-info').style.display = 'none';
-});
-
-document.getElementById('village-select').addEventListener('change', function() {
-  clearRows();
-  document.getElementById('existing-info').style.display = 'block';
-});
+  fetch(`/api/mandals/${mandalId}/villages`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(villages => {
+    villageSel.innerHTML = '<option value="">— Select Village —</option>';
+    villages.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.slug;
+      o.textContent = v.name;
+      o.dataset.id  = v.id;
+      villageSel.appendChild(o);
+    });
+    villageSel.disabled = false;
+  })
+  .catch(() => showToast('Failed to load villages. Please refresh.', true))
+  .finally(() => document.getElementById('village-loading').classList.remove('show'));
+}
 
 /* ══════════════════════════════════════════════════════════════════
-   ROW MANAGEMENT
+   VILLAGE CHANGE — load existing records for village
 ══════════════════════════════════════════════════════════════════ */
-const DOC_TYPES = [
-  'Property Deed',
-  'Mutation Record',
-  'Tax Payment Receipt',
-  'Boundary Map',
-  'Survey Certificate',
-  'Encumbrance Certificate'
-];
+function onVillageChange() {
+  const villageSel = document.getElementById('village-select');
+  const villageOpt = villageSel.options[villageSel.selectedIndex];
+  const villageId  = villageOpt?.dataset?.id;
 
-let rowIdCounter = 0;
+  clearRows();
+  document.getElementById('existing-info').style.display = 'none';
 
-function addRow() {
-  if (state.rows.length >= 10) { showToast('Maximum 10 documents per submission.', true); return; }
-  const rowId = 'row_' + (++rowIdCounter);
-  state.rows.push({ id: rowId, value: '', physical: '', fileName: '', existingFileName: '', pahaniId: null });
-  renderTable();
+  if (!villageId) return;
+
+  document.getElementById('records-loading').classList.add('show');
+
+  fetch(`/api/villages/${villageId}/pahanis`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(records => {
+    if (records.length > 0) {
+      // Pre-populate rows from DB
+      records.forEach(rec => {
+        const id = 'row_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+        state.usedValues.add(rec.document_value);
+        state.rows.push({
+          id,
+          value:            rec.document_value,
+          physical:         rec.physical_document === 'yes' ? 'Yes' : 'No',
+          fileName:         null,          // new upload (empty)
+          existingFile:     rec.file_path  ?? null,
+          existingFileName: rec.file_name  ?? null,
+          pahaniId:         rec.id,
+          uploaded_by:      rec.uploaded_by,
+        });
+      });
+
+      // Show badge
+      const infoEl = document.getElementById('existing-info');
+      infoEl.innerHTML =
+        `<div class="existing-badge"><span class="dot"></span>${records.length} existing record(s) loaded for this village. You can add new documents or replace files below.</div>`;
+      infoEl.style.display = 'block';
+    }
+    renderTable();
+  })
+  .catch(() => showToast('Failed to load existing records.', true))
+  .finally(() => document.getElementById('records-loading').classList.remove('show'));
 }
 
-function removeRow(rowId) {
-  state.rows = state.rows.filter(r => r.id !== rowId);
-  delete state.files[rowId];
-  renderTable();
-}
-
+/* ══════════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════════ */
 function clearRows() {
-  state.rows = [];
-  state.files = {};
+  state.rows       = [];
+  state.usedValues = new Set();
+  state.files      = {};
   renderTable();
 }
 
-function renderTable() {
-  const body = document.getElementById('doc-table-body');
-  if (state.rows.length === 0) {
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px;font-size:11px">No documents added yet. Click "Add Document Row" to begin.</td></tr>';
-    return;
-  }
-
-  body.innerHTML = state.rows.map(row => `
-    <tr>
-      <td>
-        <select onchange="setRowValue('${row.id}', this.value)" style="width:100%;font-size:11px">
-          <option value="">— Select Type —</option>
-          ${DOC_TYPES.map(dt => `<option value="${dt}" ${row.value === dt ? 'selected' : ''}>${dt}</option>`).join('')}
-        </select>
-      </td>
-      <td>
-        <div class="radio-group" style="gap:6px">
-          <label class="radio-label">
-            <input type="radio" name="physical_${row.id}" value="Yes" ${row.physical === 'Yes' ? 'checked' : ''} onchange="setRowPhysical('${row.id}', 'Yes')">
-            Yes
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="physical_${row.id}" value="No" ${row.physical === 'No' ? 'checked' : ''} onchange="setRowPhysical('${row.id}', 'No')">
-            No
-          </label>
-        </div>
-      </td>
-      <td>
-        <div class="field-group">
-          ${state.files[row.id] ? `
-            <div class="uploaded-file">
-              📄 ${state.files[row.id].name.substring(0, 20)}...
-              <button class="remove-btn" onclick="removeFile('${row.id}')">✕</button>
-            </div>
-          ` : row.existingFileName ? `
-            <div class="saved-file">
-              ✓ ${row.existingFileName}
-              <span class="saved-file-label">Saved</span>
-            </div>
-          ` : `
-            <div class="upload-zone" onclick="document.getElementById('file_${row.id}').click()">
-              <div class="uz-icon">📁</div>
-              <div class="uz-text">Click to Upload</div>
-              <div class="uz-hint">PDF, max 50 MB</div>
-              <input type="file" id="file_${row.id}" accept=".pdf" onchange="handleFileSelect('${row.id}', this)">
-            </div>
-          `}
-          ${state.files[row.id] && row.existingFileName ? `<div class="no-doc-msg" style="margin-top:4px">Will replace existing file</div>` : ''}
-        </div>
-      </td>
-      <td style="font-size:10px;color:#666">
-        <div id="progress-wrap-${row.id}" style="display:none">
-          <div style="width:80px;height:8px;background:#e8f0f7;border-radius:2px;overflow:hidden;margin-bottom:3px">
-            <div id="progress-bar-${row.id}" style="height:100%;background:#27ae60;width:0%;transition:width 0.2s"></div>
-          </div>
-          <div id="progress-text-${row.id}" style="font-size:9px">0%</div>
-        </div>
-      </td>
-      <td style="text-align:center">
-        <button type="button" class="btn-danger-sm" onclick="removeRow('${row.id}')">🗑️</button>
-      </td>
-    </tr>
-  `).join('');
+function getAvailableOptions(excludeValue) {
+  return ALL_OPTIONS.filter(o => !state.usedValues.has(o.value) || o.value === excludeValue);
 }
 
-function setRowValue(rowId, value) {
-  const row = state.rows.find(r => r.id === rowId);
-  if (row) row.value = value;
-}
-
-function setRowPhysical(rowId, value) {
-  const row = state.rows.find(r => r.id === rowId);
-  if (row) row.physical = value;
-}
-
-function handleFileSelect(rowId, input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.type !== 'application/pdf') {
-    showToast('Only PDF files are allowed.', true);
-    input.value = '';
-    return;
-  }
-  if (file.size > 50 * 1024 * 1024) {
-    showToast('File too large (max 50 MB).', true);
-    input.value = '';
-    return;
-  }
-  state.files[rowId] = file;
-  renderTable();
-}
-
-function removeFile(rowId) {
-  delete state.files[rowId];
-  const input = document.getElementById('file_' + rowId);
-  if (input) input.value = '';
-  renderTable();
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   TOAST NOTIFICATION
-══════════════════════════════════════════════════════════════════ */
 function showToast(msg, isError = false) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = 'toast show' + (isError ? ' error' : '');
-  setTimeout(() => toast.classList.remove('show'), 4000);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 4500);
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PROGRESS BAR UPDATES (MAIN FIX)
+   ADD / REMOVE ROWS
 ══════════════════════════════════════════════════════════════════ */
-function showUploadProgress(rows) {
-  const container = document.getElementById('upload-progress-container');
-  const rowsContainer = document.getElementById('upload-progress-rows-container');
-  
-  // Create progress row elements for each file being uploaded
-  rowsContainer.innerHTML = rows
-    .filter(r => state.files[r.id])
-    .map(r => `
-      <div class="upload-progress-row">
-        <div class="upload-progress-row-name">${r.value || 'Document'}</div>
-        <div class="upload-progress-row-bar">
-          <div class="upload-progress-row-fill" id="upload-row-progress-${r.id}" style="width:0%"></div>
-        </div>
-        <div class="upload-progress-row-percent"><span id="upload-row-pct-${r.id}">0</span>%</div>
-      </div>
-    `)
-    .join('');
-  
-  container.classList.add('show');
+function addRow() {
+  const available = ALL_OPTIONS.filter(o => !state.usedValues.has(o.value));
+  if (available.length === 0) { document.getElementById('add-row-btn').disabled = true; return; }
+  const id = 'row_' + Date.now();
+  state.rows.push({ id, value:'', physical:null, fileName:null, existingFile:null, existingFileName:null, pahaniId:null });
+  renderTable();
 }
 
-function hideUploadProgress() {
-  const container = document.getElementById('upload-progress-container');
-  container.classList.remove('show');
-}
-
-function updateOverallProgress(percent) {
-  const bar = document.getElementById('overall-progress-bar');
-  const pct = document.getElementById('overall-progress-pct');
-  bar.style.width = percent + '%';
-  pct.textContent = Math.round(percent);
-}
-
-function updateRowProgress(rowId, percent) {
-  const fill = document.getElementById(`upload-row-progress-${rowId}`);
-  const pct = document.getElementById(`upload-row-pct-${rowId}`);
-  if (fill) fill.style.width = percent + '%';
-  if (pct) pct.textContent = Math.round(percent);
-  
-  // Also update the table progress indicator
-  const tableProgressBar = document.getElementById(`progress-bar-${rowId}`);
-  const tableProgressText = document.getElementById(`progress-text-${rowId}`);
-  if (tableProgressBar) tableProgressBar.style.width = percent + '%';
-  if (tableProgressText) tableProgressText.textContent = Math.round(percent) + '%';
+function removeRow(id) {
+  const row = state.rows.find(r => r.id === id);
+  if (row?.value) state.usedValues.delete(row.value);
+  delete state.files[id];
+  state.rows = state.rows.filter(r => r.id !== id);
+  renderTable();
+  rebuildAllDropdowns();
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   FILE UPLOAD WITH PROGRESS
+   EVENTS
 ══════════════════════════════════════════════════════════════════ */
-function uploadFileWithProgress(url, file, headers, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url, true);
-    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+function onDocChange(id, sel) {
+  const row = state.rows.find(r => r.id === id);
+  if (!row) return;
+  if (row.value) state.usedValues.delete(row.value);
+  row.value    = sel.value;
+  row.physical = null;
+  row.fileName = null;
+  row.existingFile     = null;
+  row.existingFileName = null;
+  row.pahaniId = null;
+  delete state.files[id];
+  if (sel.value) state.usedValues.add(sel.value);
+  rebuildAllDropdowns();
+  renderTable();
+}
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const percent = (e.loaded / e.total) * 100;
-        onProgress(percent);
-      }
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-      } else {
-        reject(new Error('Upload to storage failed (' + xhr.status + ')'));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Network error while uploading file'));
-    xhr.send(file);
+function onPhysicalChange(id, val) {
+  const row = state.rows.find(r => r.id === id);
+  if (!row) return;
+  row.physical = val;
+  row.fileName = null;
+  delete state.files[id];
+  renderUploadCell(id);
+}
+
+function rebuildAllDropdowns() {
+  state.rows.forEach(row => {
+    const sel = document.getElementById('docsel-' + row.id);
+    if (!sel) return;
+    const cur = row.value;
+    sel.innerHTML = '<option value="">— Select Document —</option>';
+    getAvailableOptions(cur).forEach(o => {
+      const op = document.createElement('option');
+      op.value = o.value;
+      op.textContent = o.label;
+      if (o.value === cur) op.selected = true;
+      sel.appendChild(op);
+    });
   });
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   GET PRESIGNED URL
+   RENDER UPLOAD CELL
 ══════════════════════════════════════════════════════════════════ */
-async function getPresignedUrl(mandal, village, docValue, file) {
-  const res = await fetch('{{ route("pahani.presign") }}', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-    },
-    body: JSON.stringify({ 
-      mandal, 
-      village, 
-      docValue, 
-      fileMime: file.type || 'application/pdf' 
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok || !data.success) {
-    throw new Error(data.message || 'Could not prepare upload.');
+function renderUploadCell(id) {
+  const row  = state.rows.find(r => r.id === id);
+  const cell = document.getElementById('upload-' + id);
+  if (!cell || !row) return;
+  cell.innerHTML = '';
+
+  if (row.physical === 'Yes') {
+    const wrap = document.createElement('div');
+
+    // Show existing saved file if any
+    if (row.existingFileName) {
+      const saved = document.createElement('div');
+      saved.className = 'saved-file';
+      saved.innerHTML = `<span class="saved-file-label">Saved</span> 📄 ${row.existingFileName} <span style="margin-left:auto;font-size:9px;color:#888">Replace below ↓</span>`;
+      wrap.appendChild(saved);
+    }
+
+    // New upload zone
+    const zone = document.createElement('div');
+    zone.className = 'upload-zone';
+    zone.innerHTML = `<input type="file" accept=".pdf">
+      <div class="uz-icon">📄</div>
+      <div class="uz-text">${row.existingFileName ? 'Click to replace PDF' : 'Click to upload PDF'}</div>`;
+    const fi = zone.querySelector('input');
+    fi.addEventListener('change', () => {
+      const f = fi.files[0];
+      if (!f) return;
+      if (f.type !== 'application/pdf') { showToast('Only PDF files are allowed.', true); fi.value=''; return; }
+      row.fileName = f.name;
+      state.files[id] = f;
+      const old = wrap.querySelector('.uploaded-file');
+      if (old) old.remove();
+      const tag = document.createElement('div');
+      tag.className = 'uploaded-file';
+      tag.innerHTML = `📄 ${f.name.length>30?f.name.slice(0,27)+'...':f.name}
+        <button class="remove-btn" title="Remove">✕</button>`;
+      tag.querySelector('.remove-btn').onclick = () => {
+        row.fileName = null;
+        delete state.files[id];
+        tag.remove();
+        fi.value = '';
+      };
+      wrap.appendChild(tag);
+    });
+    wrap.appendChild(zone);
+    cell.appendChild(wrap);
+
+  } else if (row.physical === 'No') {
+    cell.innerHTML = '<div class="no-doc-msg">ℹ️ No physical document available</div>';
   }
-  return data; // { key, url, headers }
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   MAIN SUBMIT FUNCTION (IMPROVED)
+   RENDER TABLE
+══════════════════════════════════════════════════════════════════ */
+function renderTable() {
+  const tbody = document.getElementById('doc-tbody');
+  tbody.innerHTML = '';
+
+  state.rows.forEach(row => {
+    const opt = ALL_OPTIONS.find(o => o.value === row.value);
+    const tr  = document.createElement('tr');
+
+    // ── Col 1: Document Name dropdown ──────────────────────────────
+    const tdName = document.createElement('td');
+    const sel = document.createElement('select');
+    sel.id = 'docsel-' + row.id;
+    sel.style.cssText = 'font-size:11px;padding:5px 7px;width:100%';
+    const ph = document.createElement('option');
+    ph.value = ''; ph.textContent = '— Select Document —';
+    sel.appendChild(ph);
+    getAvailableOptions(row.value).forEach(o => {
+      const op = document.createElement('option');
+      op.value = o.value; op.textContent = o.label;
+      if (o.value === row.value) op.selected = true;
+      sel.appendChild(op);
+    });
+    sel.addEventListener('change', () => onDocChange(row.id, sel));
+    tdName.appendChild(sel);
+    if (opt?.desc) {
+      const d = document.createElement('div');
+      d.className = 'doc-desc'; d.style.marginTop = '3px';
+      d.textContent = opt.desc;
+      tdName.appendChild(d);
+    }
+    // Show pahaniId badge if editing existing
+    if (row.pahaniId) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'font-size:9px;color:#1565c0;margin-top:3px';
+      badge.textContent = '✎ Editing existing record #' + row.pahaniId;
+      tdName.appendChild(badge);
+    }
+
+    // ── Col 2: Physical Document radio ────────────────────────────
+    const tdPhys = document.createElement('td');
+    if (row.value) {
+      const rg = document.createElement('div');
+      rg.className = 'radio-group';
+      ['Yes','No'].forEach(v => {
+        const lbl = document.createElement('label');
+        lbl.className = 'radio-label';
+        const inp = document.createElement('input');
+        inp.type = 'radio'; inp.name = 'phys_'+row.id; inp.value = v;
+        if (row.physical === v) inp.checked = true;
+        inp.addEventListener('change', () => onPhysicalChange(row.id, v));
+        lbl.appendChild(inp);
+        lbl.appendChild(document.createTextNode(' '+v));
+        rg.appendChild(lbl);
+      });
+      tdPhys.appendChild(rg);
+    } else {
+      tdPhys.innerHTML = '<span style="color:#aaa;font-size:10px">— Select doc first —</span>';
+    }
+
+    // ── Col 3: Upload PDF ─────────────────────────────────────────
+    const tdUpload = document.createElement('td');
+    tdUpload.id = 'upload-' + row.id;
+    if (row.physical === 'Yes') {
+      const wrap = document.createElement('div');
+      
+      // NEW: Check if user can edit this document
+      // Allow if: (1) no pahaniId (new row) OR (2) user is the one who uploaded it
+      const canEdit = !row.pahaniId || row.uploaded_by === CURRENT_USER_ID;
+      
+      if (row.existingFileName) {
+        const saved = document.createElement('div');
+        saved.className = 'saved-file';
+        
+        // NEW: Show ownership info and conditional replace message
+        let replaceText = '';
+        if (canEdit) {
+          replaceText = ' <span style="margin-left:auto;font-size:9px;color:#888">Replace below ↓</span>';
+        } else {
+          replaceText = ' <span style="margin-left:auto;font-size:9px;color:#c0392b">⛔ (Uploaded by another user)</span>';
+        }
+        
+        saved.innerHTML = `<span class="saved-file-label">Saved</span> 📄 ${row.existingFileName}${replaceText}`;
+        wrap.appendChild(saved);
+      }
+      
+      // NEW: Only show upload zone if user can edit this document
+      if (canEdit) {
+        const zone = document.createElement('div');
+        zone.className = 'upload-zone';
+        zone.innerHTML = `<input type="file" accept=".pdf">
+          <div class="uz-icon">📄</div>
+          <div class="uz-text">${row.existingFileName ? 'Replace PDF' : 'Click to upload PDF'}</div>`;
+        const fi = zone.querySelector('input');
+        fi.addEventListener('change', () => {
+          const f = fi.files[0];
+          if (!f) return;
+          if (f.type !== 'application/pdf') { showToast('Only PDF files are allowed.', true); fi.value=''; return; }
+          row.fileName = f.name;
+          state.files[row.id] = f;
+          const old = wrap.querySelector('.uploaded-file');
+          if (old) old.remove();
+          const tag = document.createElement('div');
+          tag.className = 'uploaded-file';
+          tag.innerHTML = `📄 ${f.name.length>30?f.name.slice(0,27)+'...':f.name}
+            <button class="remove-btn" title="Remove">✕</button>`;
+          tag.querySelector('.remove-btn').onclick = () => {
+            row.fileName = null;
+            delete state.files[row.id];
+            tag.remove();
+            fi.value = '';
+          };
+          wrap.appendChild(tag);
+        });
+        wrap.appendChild(zone);
+
+        // ── Upload progress bar (hidden until upload starts) ──
+        // ── NEW: progress bar for this row ──
+        const progWrap = document.createElement('div');
+        progWrap.className = 'upload-progress-wrap';
+        progWrap.id = 'progress-wrap-' + row.id;
+        progWrap.style.display = 'none';
+        progWrap.innerHTML = `
+          <div class="upload-progress-bar" id="progress-bar-${row.id}" style="width:0%"></div>
+          <span class="upload-progress-text" id="progress-text-${row.id}">0%</span>
+        `;
+        wrap.appendChild(progWrap);
+        // ── end new ──
+
+        if (row.fileName) {
+          const tag = document.createElement('div');
+          tag.className = 'uploaded-file';
+          tag.innerHTML = `📄 ${row.fileName}`;
+          wrap.appendChild(tag);
+        }
+      } else {
+        // NEW: Show message if user cannot edit
+        const msg = document.createElement('div');
+        msg.className = 'no-doc-msg';
+        msg.innerHTML = '🔒 You cannot modify documents uploaded by other users.';
+        wrap.appendChild(msg);
+      }
+      
+      tdUpload.appendChild(wrap);
+    } else if (row.physical === 'No') {
+      tdUpload.innerHTML = '<div class="no-doc-msg">ℹ️ No physical document available</div>';
+    } else {
+      tdUpload.innerHTML = '<span style="color:#aaa;font-size:10px">—</span>';
+    }
+
+    // ── Col 4: Remove button ──────────────────────────────────────
+    const tdAction = document.createElement('td');
+    tdAction.style.textAlign = 'center';
+    const del = document.createElement('button');
+    del.className = 'btn-danger-sm';
+    del.title = 'Remove row';
+    del.innerHTML = '✕';
+    del.onclick = () => removeRow(row.id);
+    tdAction.appendChild(del);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdPhys);
+    tr.appendChild(tdUpload);
+    tr.appendChild(tdAction);
+    tbody.appendChild(tr);
+  });
+
+  // Update add-button & info text
+  const available = ALL_OPTIONS.filter(o => !state.usedValues.has(o.value));
+  const btn  = document.getElementById('add-row-btn');
+  const info = document.getElementById('row-info');
+  btn.disabled = available.length === 0;
+  btn.textContent = available.length === 0 ? '✓ All documents added' : '+ Add Document Record';
+  info.textContent = state.rows.length === 0
+    ? 'No records added yet. Click "Add Document Record" to begin.'
+    : `${state.rows.length} record(s) | ${available.length} option(s) remaining`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════════════════════════ */
+function resetForm() {
+  if (!confirm('Reset the form? All unsaved data will be lost.')) return;
+  document.getElementById('mandal-select').value = '';
+  const vs = document.getElementById('village-select');
+  vs.innerHTML = '<option value="">— First Select Mandal —</option>';
+  vs.disabled  = true;
+  clearRows();
+  document.getElementById('existing-info').style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SUBMIT — FormData to controller
 ══════════════════════════════════════════════════════════════════ */
 async function submitForm() {
   const mandalSel  = document.getElementById('mandal-select');
@@ -785,37 +961,71 @@ async function submitForm() {
   const mandal     = mandalSel.value;
   const village    = villageSel.value;
 
-  // Validation
-  if (!mandal || !village) { 
-    showToast('Please select both Mandal and Village.', true); 
-    return; 
-  }
-  if (state.rows.length === 0) { 
-    showToast('Add at least one document record.', true); 
-    return; 
-  }
+  if (!mandal || !village) { showToast('Please select both Mandal and Village.', true); return; }
+  if (state.rows.length === 0) { showToast('Add at least one document record.', true); return; }
 
   for (const row of state.rows) {
-    if (!row.value) { 
-      showToast('Please select a document name for all rows.', true); 
-      return; 
-    }
-    if (!row.physical) { 
-      showToast(`Please select Physical Document (Yes/No) for "${row.value}".`, true); 
-      return; 
-    }
-    if (row.physical === 'Yes' && !state.files[row.id] && !row.existingFileName) {
-      showToast(`Please upload a PDF for "${row.value}".`, true); 
-      return;
+    if (!row.value) { showToast('Please select a document name for all rows.', true); return; }
+    if (!row.physical) { showToast(`Please select Physical Document (Yes/No) for "${row.value}".`, true); return; }
+    if (row.physical === 'Yes' && !row.fileName && !row.existingFileName) {
+      showToast(`Please upload a PDF for "${row.value}".`, true); return;
     }
   }
 
   // Show upload progress bar (instead of submit-overlay)
-  showUploadProgress(state.rows);
+  showUploadProgress();
   document.getElementById('submit-btn').disabled = true;
 
+  function updateRowProgress(rowId, pct) {
+    const wrap = document.getElementById(`progress-wrap-${rowId}`);
+    const bar  = document.getElementById(`progress-bar-${rowId}`);
+    const text = document.getElementById(`progress-text-${rowId}`);
+    if (!wrap) return;
+    wrap.style.display = 'block';
+    bar.style.width = pct + '%';
+    text.textContent = pct + '%';
+    
+    // Also update top progress bar
+    const fill = document.getElementById(`upload-row-progress-${rowId}`);
+    const pct_el = document.getElementById(`upload-row-pct-${rowId}`);
+    if (fill) fill.style.width = pct + '%';
+    if (pct_el) pct_el.textContent = Math.round(pct);
+  }
+
+  function uploadFileWithProgress(url, file, headers, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url, true);
+      Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
+        ? resolve()
+        : reject(new Error('Upload to storage failed (' + xhr.status + ')'));
+      xhr.onerror = () => reject(new Error('Network error while uploading file'));
+      xhr.send(file);
+    });
+  }
+
+  async function getPresignedUrl(mandal, village, docValue, file) {
+    const res = await fetch('{{ route("pahani.presign") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+      },
+      body: JSON.stringify({ mandal, village, docValue, fileMime: file.type || 'application/pdf' }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Could not prepare upload.');
+    return data; // { key, url, headers }
+  }
+
   try {
-    // Step 1: Upload every file straight to R2, in parallel, with per-row progress
+    // Step 1 — upload every file straight to R2, in parallel, with per-row progress
     const uploadTasks = state.rows
       .filter(row => state.files[row.id])
       .map(async row => {
@@ -825,16 +1035,13 @@ async function submitForm() {
         row.r2Key   = key;
         row.fileSize = file.size;
         row.fileMime = file.type || 'application/pdf';
-        updateRowProgress(row.id, 100); // Mark as complete
+        updateRowProgress(row.id, 100);
       });
 
-    // Wait for all uploads to complete
     await Promise.all(uploadTasks);
-    
-    // Update overall progress
     updateOverallProgress(100);
 
-    // Step 2: Tiny JSON request, no files attached
+    // Step 2 — tiny JSON request, no files attached
     const recordsMeta = state.rows.map(row => ({
       docValue: row.value,
       physical: row.physical.toLowerCase(),
@@ -881,8 +1088,45 @@ async function submitForm() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   FORM ERROR DISPLAY
+   UPLOAD PROGRESS BAR FUNCTIONS
 ══════════════════════════════════════════════════════════════════ */
+function showUploadProgress() {
+  const container = document.getElementById('upload-progress-container');
+  const rowsContainer = document.getElementById('upload-progress-rows-container');
+  
+  // Create progress row elements for each file being uploaded
+  rowsContainer.innerHTML = state.rows
+    .filter(r => state.files[r.id])
+    .map(r => `
+      <div class="upload-progress-row">
+        <div class="upload-progress-row-name">${r.value || 'Document'}</div>
+        <div class="upload-progress-row-bar">
+          <div class="upload-progress-row-fill" id="upload-row-progress-${r.id}" style="width:0%"></div>
+        </div>
+        <div class="upload-progress-row-percent"><span id="upload-row-pct-${r.id}">0</span>%</div>
+      </div>
+    `)
+    .join('');
+  
+  container.classList.add('show');
+}
+
+function hideUploadProgress() {
+  const container = document.getElementById('upload-progress-container');
+  container.classList.remove('show');
+}
+
+function updateOverallProgress(percent) {
+  const bar = document.getElementById('overall-progress-bar');
+  const pct = document.getElementById('overall-progress-pct');
+  bar.style.width = percent + '%';
+  pct.textContent = Math.round(percent);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════════ */
+renderTable();
 function renderFormErrors(errors) {
   let box = document.getElementById('js-error-box');
   if (!box) {
@@ -897,11 +1141,6 @@ function renderFormErrors(errors) {
     </ul>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-
-/* ══════════════════════════════════════════════════════════════════
-   INIT
-══════════════════════════════════════════════════════════════════ */
-renderTable();
 </script>
 
 </body>
