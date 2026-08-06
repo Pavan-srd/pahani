@@ -374,7 +374,7 @@ class PahaniController extends Controller
         // ── Check 4: Generate secure signed URL ──
         try {
             $expiresAt = Carbon::now()->addMinutes(
-                config('filesystems.disks.r2.signed_url_expires', 60)
+                (int) config('filesystems.disks.r2.signed_url_expires', 60)
             );
             
             // Generate Cloudflare R2 signed URL
@@ -480,7 +480,7 @@ class PahaniController extends Controller
  
             // ── Generate signed URL ──
             $expiresAt = Carbon::now()->addMinutes(
-                config('filesystems.disks.r2.signed_url_expires', 60)
+                (int) config('filesystems.disks.r2.signed_url_expires', 60)
             );
  
             $cloudflareUrl = Storage::disk('r2')->temporaryUrl(
@@ -502,7 +502,7 @@ class PahaniController extends Controller
                 'url' => $cloudflareUrl,
                 'filename' => $pahani->file_name,
                 'expires_at' => $expiresAt->toDateTimeString(),
-                'expires_in_minutes' => 60,
+                'expires_in_minutes' => (int) config('filesystems.disks.r2.signed_url_expires', 60),
             ]);
  
         } catch (\Exception $e) {
@@ -548,7 +548,9 @@ class PahaniController extends Controller
         }
  
         // ── Generate signed URL ──
-        $expiresAt = Carbon::now()->addMinutes(60);
+        $expiresAt = Carbon::now()->addMinutes(
+            (int) config('filesystems.disks.r2.signed_url_expires', 60)
+        );
         $cloudflareUrl = Storage::disk('r2')->temporaryUrl(
             $pahani->file_path,
             $expiresAt

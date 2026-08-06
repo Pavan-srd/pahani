@@ -79,7 +79,7 @@ return [
             'rate_limit_per_hour' => env('R2_RATE_LIMIT_PER_HOUR', 100),
             
             // ─── URL Expiration ───
-            'signed_url_expires' => env('R2_SIGNED_URL_EXPIRES', 3600),
+            'signed_url_expires' => env('R2_SIGNED_URL_EXPIRES', 60),
             
             'throw' => false,
         ],
