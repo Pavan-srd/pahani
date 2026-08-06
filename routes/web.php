@@ -24,7 +24,7 @@ Route::middleware('auth')->group(function () {
             ->name('pahani.pdf-redirect');
  
     });
-    // routes/web.php
+    
     Route::post('/pahani/presign', [PahaniController::class, 'presign'])->name('pahani.presign');
     Route::post('/pahani/store',   [PahaniController::class, 'store'])->name('pahani.store');
 
