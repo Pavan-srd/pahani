@@ -393,20 +393,6 @@ class PahaniController extends Controller
             abort(500, 'Unable to generate secure URL');
         }
  
-        // ── Check 5: Log access for audit trail ──
-        Log::channel('pdf_access')->info('PDF Viewer Page Accessed', [
-            'user_id' => Auth::id(),
-            'user_email' => Auth::user()->email,
-            'pahani_id' => $pahani->id,
-            'document_name' => $pahani->document_name,
-            'file_path' => $pahani->file_path,
-            'file_size' => $pahani->file_size ?? 0,
-            'ip' => request()->ip(),
-            'user_agent' => request()->header('User-Agent'),
-            'timestamp' => now(),
-            'url_expires_at' => $expiresAt->toDateTimeString(),
-        ]);
- 
         return view('pahani.pdf-viewer', [
             'pahani'       => $pahani,
             'pdfSourceUrl' => $cloudflareUrl,  // ← Direct Cloudflare URL
@@ -488,15 +474,6 @@ class PahaniController extends Controller
                 $expiresAt
             );
  
-            // ── Log access ──
-            Log::channel('pdf_access')->info('Signed URL Generated', [
-                'user_id' => Auth::id(),
-                'pahani_id' => $pahani->id,
-                'document_name' => $pahani->document_name,
-                'ip' => request()->ip(),
-                'timestamp' => now(),
-            ]);
- 
             return response()->json([
                 'success' => true,
                 'url' => $cloudflareUrl,
@@ -555,16 +532,6 @@ class PahaniController extends Controller
             $pahani->file_path,
             $expiresAt
         );
- 
-        // ── Log access ──
-        Log::channel('pdf_access')->info('PDF Redirect to Cloudflare', [
-            'user_id' => Auth::id(),
-            'user_email' => Auth::user()->email,
-            'pahani_id' => $pahani->id,
-            'document_name' => $pahani->document_name,
-            'ip' => request()->ip(),
-            'timestamp' => now(),
-        ]);
  
         // ── Redirect to Cloudflare R2 URL ──
         return redirect($cloudflareUrl);

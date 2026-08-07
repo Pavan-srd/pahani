@@ -673,33 +673,6 @@
             <div class="field-error" id="user-edit-mandals-error"></div>
           </div>
 
-          <!-- 📋 DOCUMENT PERMISSIONS (NEW) -->
-          <div class="form-field" id="user-edit-permissions-field">
-            <label style="font-size:11px;font-weight:bold;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block;">📋 Document Permissions</label>
-            <div id="user-edit-permissions-container" style="display: flex; flex-direction: column; gap: 10px; border: 1px solid #b0c4d8; border-radius: 2px; padding: 10px; background: #f8fbfd;">
-              
-              <!-- View Permission -->
-              <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:6px 8px;border-radius:3px;transition:background 0.15s;margin:0;font-weight:normal;text-transform:none;letter-spacing:normal;">
-                <input type="checkbox" id="user-edit-can-view" name="can_view" style="width:16px;height:16px;cursor:pointer;accent-color:#154360;margin-top:2px;flex-shrink:0;">
-                <span style="display:flex;flex-direction:column;gap:2px;">
-                  <span style="font-size:11px;font-weight:500;color:#1a1a2e;">👁 View Records</span>
-                  <span style="font-size:10px;color:#888;font-weight:normal;">User can view and download PDF documents</span>
-                </span>
-              </label>
-
-              <!-- Edit Permission -->
-              <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:6px 8px;border-radius:3px;transition:background 0.15s;margin:0;font-weight:normal;text-transform:none;letter-spacing:normal;">
-                <input type="checkbox" id="user-edit-can-edit" name="can_edit" style="width:16px;height:16px;cursor:pointer;accent-color:#154360;margin-top:2px;flex-shrink:0;">
-                <span style="display:flex;flex-direction:column;gap:2px;">
-                  <span style="font-size:11px;font-weight:500;color:#1a1a2e;">✎ Edit Records</span>
-                  <span style="font-size:10px;color:#888;font-weight:normal;">User can edit document information and status</span>
-                </span>
-              </label>
-
-            </div>
-            <div class="field-error" id="user-edit-permissions-error"></div>
-          </div>
-
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary-sm" onclick="closeModal('user-edit-modal-overlay')">Cancel</button>
@@ -1269,10 +1242,6 @@ function openEditModal(tab, id) {
         document.getElementById('user-edit-email-input').value = record.email;
         document.getElementById('user-edit-status-checkbox').checked = record.status === 1 || record.status === true;
         
-        // ← NEW: Populate permission checkboxes
-        document.getElementById('user-edit-can-view').checked = record.permissions?.can_view ?? false;
-        document.getElementById('user-edit-can-edit').checked = record.permissions?.can_edit ?? false;
-        
         populateWorkingOfficeDropdown('user-edit-working-office-select', record.working_office_id);
         populateMandalCheckboxes(record.mandal_ids || []);
         openModal('user-edit-modal-overlay');
@@ -1368,11 +1337,7 @@ function submitEditUserForm(e) {
   // Get selected mandals
   const mandalCheckboxes = document.querySelectorAll('#user-edit-mandals-container input[type="checkbox"]:checked');
   const mandalIds = Array.from(mandalCheckboxes).map(cb => parseInt(cb.value));
-
-  // ← NEW: Get document permissions
-  const can_view = document.getElementById('user-edit-can-view')?.checked ?? false;
-  const can_edit = document.getElementById('user-edit-can-edit')?.checked ?? false;
-  console.log('can_view:', can_view, 'can_edit:', can_edit);
+ 
   let hasError = false;
   if (!name) {
     setFieldError('user-edit-name-field', 'user-edit-name-error', 'Name is required.');
@@ -1406,8 +1371,6 @@ function submitEditUserForm(e) {
       working_office_id: parseInt(working_office_id),
       status: status,
       mandal_ids: mandalIds,
-      can_view: can_view,
-      can_edit: can_edit,
     }),
   })
   .then(async r => {
@@ -1545,6 +1508,84 @@ function submitEditWorkingOfficeForm(e) {
   .finally(() => {
     btn.disabled = false;
     btn.textContent = 'Update Office';
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UPDATE USER
+══════════════════════════════════════════════════════════════════ */
+function submitEditUserForm(e) {
+  e.preventDefault();
+  clearFieldError('user-edit-name-field', 'user-edit-name-error');
+  clearFieldError('user-edit-email-field', 'user-edit-email-error');
+  clearFieldError('user-edit-working-office-field', 'user-edit-working-office-error');
+ 
+  const id = document.getElementById('user-edit-id').value;
+  const name = document.getElementById('user-edit-name-input').value.trim();
+  const email = document.getElementById('user-edit-email-input').value.trim();
+  const working_office_id = document.getElementById('user-edit-working-office-select').value;
+  const status = document.getElementById('user-edit-status-checkbox').checked ? 1 : 0;
+ 
+  const mandalCheckboxes = document.querySelectorAll('#user-edit-mandals-container input[type="checkbox"]:checked');
+  const mandalIds = Array.from(mandalCheckboxes).map(cb => parseInt(cb.value));
+ 
+  let hasError = false;
+  if (!name) {
+    setFieldError('user-edit-name-field', 'user-edit-name-error', 'Name is required.');
+    hasError = true;
+  }
+  if (!email) {
+    setFieldError('user-edit-email-field', 'user-edit-email-error', 'Email is required.');
+    hasError = true;
+  }
+  if (!working_office_id) {
+    setFieldError('user-edit-working-office-field', 'user-edit-working-office-error', 'Please select a working office.');
+    hasError = true;
+  }
+  if (hasError) return;
+ 
+  const btn = document.getElementById('user-edit-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+ 
+  fetch(EDIT_META.users.updateUrl(id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ 
+      name, 
+      email,
+      working_office_id: parseInt(working_office_id),
+      status: status,
+      mandal_ids: mandalIds,
+    }),
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422) {
+      if (data.errors?.name) setFieldError('user-edit-name-field', 'user-edit-name-error', data.errors.name[0]);
+      if (data.errors?.email) setFieldError('user-edit-email-field', 'user-edit-email-error', data.errors.email[0]);
+      if (data.errors?.working_office_id) setFieldError('user-edit-working-office-field', 'user-edit-working-office-error', data.errors.working_office_id[0]);
+      if (!data.errors) showToast(data.message || 'Validation failed.', true);
+      return;
+    }
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to update user.', true);
+      return;
+    }
+    showToast('✔ User updated successfully.');
+    closeModal('user-edit-modal-overlay');
+    loadedTabs.delete('users');
+    loadTabData('users');
+  })
+  .catch(() => showToast('Network error. Please try again.', true))
+  .finally(() => {
+    btn.disabled = false;
+    btn.textContent = 'Update User';
   });
 }
 

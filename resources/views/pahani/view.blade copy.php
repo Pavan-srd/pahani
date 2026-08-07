@@ -88,7 +88,38 @@
 
     .empty-state{text-align:center;padding:30px 10px;color:#888;font-size:11px}
     .empty-state .es-icon{font-size:30px;margin-bottom:8px;opacity:0.5}
+    .page-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #0b5ed7;
+        padding: 0 15px;
+    }
 
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .nav-right {
+        margin-left: auto;
+    }
+
+    .logout-btn {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: .2s;
+    }
+
+    .logout-btn:hover {
+        background: #bb2d3b;
+    }
     @media(max-width:600px){.form-row{grid-template-columns:1fr}.gov-title-block .dept-name{font-size:14px}}
   </style>
 </head>
@@ -110,17 +141,28 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District (Name, Designation)
+      PAHANI DIGITIZATION MANAGEMENT SYSTEM — Sangareddy District ({{ auth()->user()?->name }}, {{auth()->user()->getMandal?->name}})
     </div>
   </div>
 
   {{-- ── NAV ── --}}
   <div class="page-nav">
-    <a class="nav-item" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
-    <a class="nav-item active" href="{{ route('pahani.view') }}">📋 View Records</a>
-    <a class="nav-item" href="#">🔍 Search</a>
-    <a class="nav-item" href="#">📊 Reports</a>
-    <a class="nav-item" href="#">⚙️ Settings</a>
+      <div class="nav-left">
+          <a class="nav-item" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
+          <a class="nav-item active" href="{{ route('pahani.view') }}">📋 View Records</a>
+          <a class="nav-item" href="#">🔍 Search</a>
+          <a class="nav-item" href="#">📊 Reports</a>
+          <a class="nav-item" href="#">⚙️ Settings</a>
+      </div>
+
+      <div class="nav-right">
+          <form id="logoutForm" method="POST" action="{{ route('logout') }}">
+              @csrf
+              <button type="button" class="logout-btn" onclick="confirmLogout()">
+                  🚪 Logout
+              </button>
+          </form>
+      </div>
   </div>
 
   <div class="main-body">
@@ -135,7 +177,7 @@
     </div>
 
     <div class="notice-bar">
-      ℹ️&nbsp;<span>Select Mandal &amp; Village below to load all Pahani records for that village. Click <strong>View PDF</strong> to open the uploaded document in a new tab.</span>
+      ℹ️&nbsp;<span>Select Mandal &amp; Village below to load all Pahani records for that village. Click <strong>View PDF</strong> to open the uploaded document in a secure in-site viewer (opens in a new tab).</span>
     </div>
 
     {{-- ── SECTION 1: MANDAL & VILLAGE ── --}}
@@ -209,7 +251,24 @@
 
 </div>{{-- /portal-wrap --}}
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+  function confirmLogout() {
+      Swal.fire({
+          title: 'Logout?',
+          text: 'Are you sure you want to logout?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Yes, Logout',
+          cancelButtonText: 'Cancel'
+      }).then((result) => {
+          if (result.isConfirmed) {
+              document.getElementById('logoutForm').submit();
+          }
+      });
+  }
 /* ══════════════════════════════════════════════════════════════════
    MANDAL CHANGE — fetch villages via AJAX
 ══════════════════════════════════════════════════════════════════ */
@@ -312,7 +371,7 @@ function renderRecords(records, mandalName, villageName) {
       </td>
       <td style="text-align:center">
         ${hasFile
-          ? `<a class="btn-view-pdf" href="/pahani/file/${rec.id}" target="_blank" rel="noopener">👁 View PDF</a>`
+          ? `<a class="btn-view-pdf" href="/pahani/view-pdf/${rec.id}" target="_blank" rel="noopener">👁 View PDF</a>`
           : `<span class="no-file-tag">—</span>`}
       </td>
     `;

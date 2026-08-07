@@ -237,9 +237,12 @@ class AdminController extends Controller
             ->pluck('mandal_id')
             ->map(fn($id) => (int) $id)
             ->toArray();
-
+ 
         $allWorkingOffices = WorkingOffice::orderBy('name')->get(['id', 'name']);
-
+ 
+        // ← NEW: Get document permissions
+        $permissions = $user->getOrCreateDocumentPermission();
+ 
         return response()->json([
             'id'                    => $user->id,
             'name'                  => $user->name,
@@ -258,6 +261,12 @@ class AdminController extends Controller
             ]),
             'mandal_ids'            => $userMandalIds,
             'assigned_mandal_ids'   => $userMandalIds,
+            
+            // ← NEW: Document permissions
+            'permissions'           => [
+                'can_view' => (bool) $permissions->can_view,
+                'can_edit' => (bool) $permissions->can_edit,
+            ],
         ]);
     }
 
@@ -358,13 +367,17 @@ class AdminController extends Controller
             'status'              => ['nullable', 'integer', 'in:0,1'],
             'mandal_ids'          => ['nullable', 'array'],
             'mandal_ids.*'        => ['integer', 'exists:mandals,id'],
+            
+            // ← NEW: Document permissions validation
+            'can_view'            => ['nullable', 'boolean'],
+            'can_edit'            => ['nullable', 'boolean'],
         ], [
             'email.unique'              => 'A user with this email already exists.',
             'working_office_id.required' => 'Working office is required.',
             'working_office_id.exists'   => 'The selected working office does not exist.',
             'status.in'                 => 'Status must be 0 (Inactive) or 1 (Active).',
         ]);
-
+ 
         $user->name              = $validated['name'];
         $user->email             = $validated['email'];
         $user->working_office_id = $validated['working_office_id'];
@@ -374,11 +387,18 @@ class AdminController extends Controller
             $user->password = bcrypt($validated['password']);
         }
         $user->save();
-
-        // Sync mandal assignments (use sync to replace all assignments)
+ 
+        // Sync mandal assignments
         $mandalIds = $validated['mandal_ids'] ?? [];
         $user->mandals()->sync($mandalIds);
-
+ 
+        // ← NEW: Update document permissions
+        $permissions = $user->getOrCreateDocumentPermission();
+        $permissions->update([
+            'can_view' => (bool) ($validated['can_view'] ?? false),
+            'can_edit' => (bool) ($validated['can_edit'] ?? false),
+        ]);
+ 
         return response()->json([
             'success' => true,
             'message' => 'User updated successfully.',
@@ -390,6 +410,12 @@ class AdminController extends Controller
                 'working_office_id'   => $user->working_office_id,
                 'status'              => (int) $user->status,
                 'is_active'           => (bool) ($user->is_active ?? true),
+                
+                // ← NEW: Include permissions in response
+                'permissions'         => [
+                    'can_view' => (bool) $permissions->can_view,
+                    'can_edit' => (bool) $permissions->can_edit,
+                ],
             ],
         ]);
     }
