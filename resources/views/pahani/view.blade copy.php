@@ -84,6 +84,10 @@
     /* ── VIEW PDF BUTTON ── */
     .btn-view-pdf{display:inline-flex;align-items:center;gap:6px;background:#154360;color:white;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:pointer;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;text-decoration:none;transition:background 0.15s}
     .btn-view-pdf:hover{background:#1a6fa8}
+    .btn-view-pdf-disabled{display:inline-flex;align-items:center;gap:6px;background:#ccc;color:#666;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:not-allowed;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;opacity:0.5}
+    .btn-edit-doc{display:inline-flex;align-items:center;gap:6px;background:#f39c12;color:white;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:pointer;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;transition:background 0.15s}
+    .btn-edit-doc:hover{background:#e67e22}
+    .btn-edit-doc-disabled{display:inline-flex;align-items:center;gap:6px;background:#ccc;color:#666;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:not-allowed;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;opacity:0.5}
     .no-file-tag{font-size:10px;color:#aaa;font-style:italic}
 
     .empty-state{text-align:center;padding:30px 10px;color:#888;font-size:11px}
@@ -253,6 +257,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+  // ← NEW: Store user permissions
+  const USER_PERMISSIONS = {
+    can_view: @json($permissions['can_view'] ?? false),
+    can_edit: @json($permissions['can_edit'] ?? false),
+  };
+
   function confirmLogout() {
       Swal.fire({
           title: 'Logout?',
@@ -357,6 +367,29 @@ function renderRecords(records, mandalName, villageName) {
     const isYes = rec.physical_document === 'yes';
     const hasFile = !!rec.file_path;
 
+    // ← NEW: Build View PDF button with permission checks
+    let viewPdfHtml = '';
+    if (hasFile) {
+      if (USER_PERMISSIONS.can_view) {
+        // User has permission to view
+        viewPdfHtml = `<a class="btn-view-pdf" href="/pahani/view-pdf/${rec.id}" target="_blank" rel="noopener">👁 View PDF</a>`;
+      } else {
+        // File exists but no permission
+        viewPdfHtml = `<button class="btn-view-pdf-disabled" disabled title="You don't have permission to view PDFs">👁 View PDF</button>`;
+      }
+    } else {
+      // No file uploaded
+      viewPdfHtml = `<span class="no-file-tag">—</span>`;
+    }
+
+    // ← NEW: Build Edit button with permission checks
+    let editHtml = '';
+    if (USER_PERMISSIONS.can_edit) {
+      editHtml = `<button class="btn-edit-doc" onclick="editRecord(${rec.id})" title="Edit this document">✎ Edit</button>`;
+    } else {
+      editHtml = `<button class="btn-edit-doc-disabled" disabled title="You don't have permission to edit documents">✎ Edit</button>`;
+    }
+
     tr.innerHTML = `
       <td>${escapeHtml(rec.document_name || rec.document_value)}</td>
       <td>
@@ -369,10 +402,9 @@ function renderRecords(records, mandalName, villageName) {
           ? `📄 ${escapeHtml(rec.file_name || 'document.pdf')}`
           : `<span class="no-file-tag">No file uploaded</span>`}
       </td>
-      <td style="text-align:center">
-        ${hasFile
-          ? `<a class="btn-view-pdf" href="/pahani/view-pdf/${rec.id}" target="_blank" rel="noopener">👁 View PDF</a>`
-          : `<span class="no-file-tag">—</span>`}
+      <td style="text-align:center; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+        ${viewPdfHtml}
+        ${editHtml}
       </td>
     `;
     tbody.appendChild(tr);

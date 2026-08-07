@@ -22,7 +22,7 @@ Route::middleware('auth')->group(function () {
             ->name('pahani.pdf-url');
         Route::get('/pahani/pdf-redirect/{pahani}', [PahaniController::class, 'redirectToCloudflare'])
             ->name('pahani.pdf-redirect');
- 
+        Route::post('/pahani/{pahani}/update-file', [PahaniController::class, 'updateFile'])->name('pahani.update-file');
     });
     
     Route::post('/pahani/presign', [PahaniController::class, 'presign'])->name('pahani.presign');

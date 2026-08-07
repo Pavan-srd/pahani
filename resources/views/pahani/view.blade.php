@@ -253,6 +253,94 @@
 
   </div>{{-- /main-body --}}
 
+  <div class="modal-overlay" id="edit-pdf-modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:flex; align-items:center; justify-content:center;" onclick="if(event.target===this) closeEditPdfModal()">
+    <div class="modal-container" style="background:white; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); width:90%; max-width:500px; overflow:auto;">
+      
+      <!-- Modal Header -->
+      <div style="padding:16px 20px; border-bottom:1px solid #e0e6ed; display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:14px; font-weight:bold; color:#1a1a2e;">📝 Edit PDF Document</h3>
+        <button onclick="closeEditPdfModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#999;">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div style="padding:20px;">
+        
+        <!-- Mandal & Village Info -->
+        <div style="margin-bottom:16px; padding:12px; background:#f0f4f8; border-radius:3px;">
+          <div style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Location</div>
+          <div style="font-size:13px; color:#1a1a2e; font-weight:500;">
+            <span id="edit-mandal-name"></span> → <span id="edit-village-name"></span>
+          </div>
+        </div>
+
+        <!-- Document Name -->
+        <div style="margin-bottom:16px; padding:12px; background:#f0f4f8; border-radius:3px;">
+          <div style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Document</div>
+          <div style="font-size:13px; color:#1a1a2e; font-weight:500;" id="edit-document-name"></div>
+        </div>
+
+        <!-- Current File Info -->
+        <div style="margin-bottom:16px; padding:12px; background:#e8f4f8; border-radius:3px; border-left:4px solid #154360;">
+          <div style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Current File</div>
+          <div style="font-size:12px; color:#1a1a2e;">
+            📄 <span id="edit-current-filename"></span>
+            <br>
+            <span style="font-size:10px; color:#888;">Size: <span id="edit-current-filesize"></span></span>
+          </div>
+        </div>
+
+        <!-- Upload Form -->
+        <form id="edit-pdf-form" onsubmit="handleEditPdfUpload(event)" style="margin-bottom:16px;">
+          
+          <!-- File Input -->
+          <div style="margin-bottom:16px;">
+            <label style="display:block; font-size:11px; font-weight:bold; color:#1a3a5c; text-transform:uppercase; margin-bottom:8px;">Select New PDF File</label>
+            <input 
+              type="file" 
+              id="edit-pdf-file-input" 
+              name="file" 
+              accept=".pdf" 
+              required 
+              style="display:block; width:100%; padding:8px; border:1px solid #b0c4d8; border-radius:3px; font-size:12px;"
+            >
+            <div style="font-size:10px; color:#888; margin-top:4px;">Maximum file size: 200 MB</div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div id="edit-upload-progress" style="display:none; margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:bold; color:#666; margin-bottom:6px;">Uploading...</div>
+            <div style="background:#e8e8e8; border-radius:2px; height:6px; overflow:hidden;">
+              <div id="edit-progress-bar" style="background:#154360; height:100%; width:0%; transition:width 0.2s;"></div>
+            </div>
+            <div style="font-size:10px; color:#888; margin-top:4px;"><span id="edit-progress-text">0</span>%</div>
+          </div>
+
+          <!-- Submit Button -->
+          <button 
+            type="submit" 
+            id="edit-submit-btn" 
+            style="width:100%; padding:10px; background:#154360; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; transition:background 0.15s;"
+          >
+            🔄 Update PDF
+          </button>
+        </form>
+
+        <!-- Error Message -->
+        <div id="edit-error-message" style="display:none; padding:12px; background:#fee; border:1px solid #fcc; border-radius:3px; color:#c00; font-size:12px; margin-bottom:16px;"></div>
+
+        <!-- Success Message -->
+        <div id="edit-success-message" style="display:none; padding:12px; background:#efe; border:1px solid #cfc; border-radius:3px; color:#060; font-size:12px; margin-bottom:16px;">✔ PDF updated successfully!</div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding:16px 20px; border-top:1px solid #e0e6ed; text-align:right;">
+        <button onclick="closeEditPdfModal()" style="padding:8px 16px; background:#f0f4f8; color:#1a1a2e; border:1px solid #b0c4d8; border-radius:3px; cursor:pointer; font-weight:bold;">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+
 </div>{{-- /portal-wrap --}}
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -360,7 +448,18 @@ function renderRecords(records, mandalName, villageName) {
   empty.style.display = 'none';
   info.style.display  = 'block';
   info.innerHTML = `<div class="existing-badge"><span class="dot"></span>${records.length} record(s) found for ${villageName}, ${mandalName}</div>`;
-
+  
+  // ← CRITICAL: Store records and location globally for modal access
+  window.PAHANI_RECORDS = records;
+  window.PAHANI_MANDAL_NAME = mandalName;
+  window.PAHANI_VILLAGE_NAME = villageName;
+  
+  // Also need to extract mandal and village slugs - try to get from dropdowns
+  const mandalSel = document.getElementById('mandal-select');
+  const villageSel = document.getElementById('village-select');
+  window.PAHANI_MANDAL_SLUG = mandalSel.value || '';
+  window.PAHANI_VILLAGE_SLUG = villageSel.value || '';
+  
   records.forEach(rec => {
     const tr = document.createElement('tr');
 
@@ -432,6 +531,296 @@ function showToast(msg, isError = false) {
   t.style.background = isError ? '#7f0000' : '#154360';
   setTimeout(() => t.style.display = 'none', 4500);
 }
+
+// Store current record being edited
+let currentEditRecord = null;
+
+/**
+ * Open edit modal for a record
+ * @param {number} pahaniId - ID of the record to edit
+ */
+function editRecord(pahaniId) {
+  // Find the record from the table
+  const records = window.PAHANI_RECORDS || [];
+  currentEditRecord = records.find(r => r.id === pahaniId);
+  
+  if (!currentEditRecord) {
+    showToast('Record not found.', true);
+    return;
+  }
+
+  if (!currentEditRecord.file_path) {
+    showToast('This record has no file to edit.', true);
+    return;
+  }
+
+  // Populate modal with record data
+  document.getElementById('edit-mandal-name').textContent = window.PAHANI_MANDAL_NAME || 'Mandal';
+  document.getElementById('edit-village-name').textContent = window.PAHANI_VILLAGE_NAME || 'Village';
+  document.getElementById('edit-document-name').textContent = currentEditRecord.document_name || currentEditRecord.document_value;
+  document.getElementById('edit-current-filename').textContent = currentEditRecord.file_name || 'document.pdf';
+  document.getElementById('edit-current-filesize').textContent = currentEditRecord.file_size_human || 'Unknown';
+
+  // Clear form
+  document.getElementById('edit-pdf-file-input').value = '';
+  document.getElementById('edit-error-message').style.display = 'none';
+  document.getElementById('edit-success-message').style.display = 'none';
+  document.getElementById('edit-upload-progress').style.display = 'none';
+  document.getElementById('edit-submit-btn').disabled = false;
+  document.getElementById('edit-submit-btn').textContent = '🔄 Update PDF';
+
+  // Show modal
+  document.getElementById('edit-pdf-modal-overlay').style.display = 'flex';
+}
+
+/**
+ * Close edit modal
+ */
+function closeEditPdfModal() {
+  document.getElementById('edit-pdf-modal-overlay').style.display = 'none';
+  currentEditRecord = null;
+}
+
+/**
+ * Handle PDF upload and update
+ */
+async function handleEditPdfUpload(e) {
+  e.preventDefault();
+
+  if (!currentEditRecord) {
+    showToast('No record selected.', true);
+    return;
+  }
+
+  const fileInput = document.getElementById('edit-pdf-file-input');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    showErrorMessage('Please select a file.');
+    return;
+  }
+
+  if (file.type !== 'application/pdf') {
+    showErrorMessage('Only PDF files are allowed.');
+    return;
+  }
+
+  if (file.size > 200 * 1024 * 1024) { // 200 MB
+    showErrorMessage('File size must be less than 200 MB.');
+    return;
+  }
+
+  const submitBtn = document.getElementById('edit-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Updating…';
+
+  try {
+    // Step 1: Get presigned upload URL
+    const presignResponse = await fetch('/pahani/presign', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+      },
+      body: JSON.stringify({
+        mandal: window.PAHANI_MANDAL_SLUG || '',
+        village: window.PAHANI_VILLAGE_SLUG || '',
+        docValue: currentEditRecord.document_value,
+        fileMime: file.type,
+      }),
+    });
+
+    if (!presignResponse.ok) {
+      const err = await presignResponse.json();
+      throw new Error(err.message || 'Failed to get upload URL');
+    }
+
+    const presignData = await presignResponse.json();
+
+    if (!presignData.success) {
+      throw new Error(presignData.message || 'Presign failed');
+    }
+
+    // Step 2: Upload to Cloudflare R2
+    showProgressBar(true);
+    
+    const uploadResponse = await uploadToR2(
+      presignData.url,
+      file,
+      presignData.headers
+    );
+
+    if (!uploadResponse.ok) {
+      throw new Error('Upload to Cloudflare failed: ' + uploadResponse.status);
+    }
+
+    showProgressBar(false);
+
+    // Step 3: Update database with new file
+    const updateResponse = await fetch(`/pahani/${currentEditRecord.id}/update-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+      },
+      body: JSON.stringify({
+        r2_key: presignData.key,
+        file_name: file.name,
+        file_size: file.size,
+        file_mime: file.type,
+        old_file_path: currentEditRecord.file_path, // For deletion
+      }),
+    });
+
+    if (!updateResponse.ok) {
+      const err = await updateResponse.json();
+      throw new Error(err.message || 'Failed to update record');
+    }
+
+    const updateData = await updateResponse.json();
+
+    if (!updateData.success) {
+      throw new Error(updateData.message || 'Update failed');
+    }
+
+    // Success!
+    showSuccessMessage('PDF updated successfully!');
+    setTimeout(() => {
+      closeEditPdfModal();
+      // Refresh the records
+      if (window.loadRecords) {
+        window.loadRecords();
+      }
+    }, 1500);
+
+  } catch (error) {
+    console.error('Edit error:', error);
+    showErrorMessage(error.message || 'Failed to update PDF. Please try again.');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '🔄 Update PDF';
+  }
+}
+
+/**
+ * Upload file to Cloudflare R2 with progress tracking
+ */
+async function uploadToR2(presignedUrl, file, headers) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        updateProgressBar(percentComplete);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(new Response('', { status: xhr.status }));
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Upload error'));
+    });
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload aborted'));
+    });
+
+    xhr.open('PUT', presignedUrl);
+
+    // Set headers
+    if (headers) {
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+    }
+
+    xhr.send(file);
+  });
+}
+
+/**
+ * Show progress bar
+ */
+function showProgressBar(show) {
+  document.getElementById('edit-upload-progress').style.display = show ? 'block' : 'none';
+  if (show) {
+    updateProgressBar(0);
+  }
+}
+
+/**
+ * Update progress bar
+ */
+function updateProgressBar(percent) {
+  document.getElementById('edit-progress-bar').style.width = percent + '%';
+  document.getElementById('edit-progress-text').textContent = percent;
+}
+
+/**
+ * Show error message
+ */
+function showErrorMessage(message) {
+  const errorDiv = document.getElementById('edit-error-message');
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+  document.getElementById('edit-success-message').style.display = 'none';
+}
+
+/**
+ * Show success message
+ */
+function showSuccessMessage(message) {
+  const successDiv = document.getElementById('edit-success-message');
+  successDiv.textContent = message;
+  successDiv.style.display = 'block';
+  document.getElementById('edit-error-message').style.display = 'none';
+}
+
+/**
+ * Reload records from server (called after edit)
+ */
+function loadRecords() {
+  const mandalSel = document.getElementById('mandal-select');
+  const villageSel = document.getElementById('village-select');
+  const villageId = villageSel.options[villageSel.selectedIndex]?.dataset?.id;
+  
+  if (!villageId) return;
+  
+  document.getElementById('records-loading').classList.add('show');
+  
+  fetch(`/api/villages/${villageId}/pahanis`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(records => {
+    const mandalName = mandalSel.options[mandalSel.selectedIndex]?.textContent?.trim();
+    const villageName = villageSel.options[villageSel.selectedIndex]?.textContent?.trim();
+    renderRecords(records, mandalName, villageName);
+  })
+  .catch(err => {
+    console.error('Failed to reload records:', err);
+    showToast('Failed to reload records', true);
+  })
+  .finally(() => document.getElementById('records-loading').classList.remove('show'));
+}
+
+// Store records and location data globally for modal
+document.addEventListener('DOMContentLoaded', () => {
+  // This will be set when records are loaded
+  window.PAHANI_RECORDS = [];
+  window.PAHANI_MANDAL_NAME = '';
+  window.PAHANI_VILLAGE_NAME = '';
+  window.PAHANI_MANDAL_SLUG = '';
+  window.PAHANI_VILLAGE_SLUG = '';
+});
 </script>
 
 </body>

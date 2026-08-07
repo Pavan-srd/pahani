@@ -587,4 +587,87 @@ class PahaniController extends Controller
         // ── Access denied ──
         throw new \Exception('Unauthorized document access');
     }
+
+    public function updateFile(Request $request, Pahani $pahani)
+    {
+        // Only allow editing if user can edit
+        if (!auth()->user()->canEditDocuments()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to edit documents.'
+            ], 403);
+        }
+
+        $request->validate([
+            'r2_key'           => ['required', 'string'],
+            'file_name'        => ['required', 'string'],
+            'file_size'        => ['required', 'integer'],
+            'file_mime'        => ['required', 'string'],
+            'old_file_path'    => ['nullable', 'string'],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Delete old file from R2 if it exists
+            if (!empty($request->old_file_path)) {
+                try {
+                    Storage::disk('r2')->delete($request->old_file_path);
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to delete old file from R2: ' . $e->getMessage());
+                    // Continue anyway - file might already be deleted
+                }
+            }
+
+            // Update the Pahani record
+            $pahani->update([
+                'file_name'  => $request->file_name,
+                'file_path'  => $request->r2_key,
+                'file_size'  => $request->file_size,
+                'file_mime'  => $request->file_mime,
+                'disk'       => 'r2',
+                'uploaded_by'=> auth()->id(),
+                'uploaded_ip'=> $request->ip(),
+            ]);
+
+            // Calculate human-readable file size
+            $fileSizeHuman = $this->formatFileSize($request->file_size);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'PDF updated successfully.',
+                'pahani'  => [
+                    'id'              => $pahani->id,
+                    'file_name'       => $pahani->file_name,
+                    'file_path'       => $pahani->file_path,
+                    'file_size_human' => $fileSizeHuman,
+                    'uploaded_by'     => $pahani->uploaded_by,
+                ],
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Failed to update Pahani file: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update PDF. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Format bytes to human readable size
+     */
+    private function formatFileSize($bytes)
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= (1 << (10 * $pow));
+
+        return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
 }
