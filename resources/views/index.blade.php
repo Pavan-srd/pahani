@@ -802,7 +802,7 @@ function renderTable() {
       
       const lockBadge = document.createElement('div');
       lockBadge.className = 'locked-badge';
-      lockBadge.innerHTML = '🔒 Locked - Uploaded by another user';
+      lockBadge.innerHTML = '🔒 Locked - Document Locked';
       tdName.appendChild(lockBadge);
     } else {
       // EDITABLE: Show as dropdown
@@ -886,7 +886,7 @@ function renderTable() {
         if (canEdit) {
           replaceText = ' <span style="margin-left:auto;font-size:9px;color:#888">Replace below ↓</span>';
         } else {
-          replaceText = ' <span style="margin-left:auto;font-size:9px;color:#c0392b">⛔ (Uploaded by another user)</span>';
+          replaceText = ' <span style="margin-left:auto;font-size:9px;color:#c0392b">⛔ (Document Locked)</span>';
         }
         
         saved.innerHTML = `<span class="saved-file-label">Saved</span> 📄 ${row.existingFileName}${replaceText}`;
@@ -946,7 +946,7 @@ function renderTable() {
         // NEW: Show message if user cannot edit
         const msg = document.createElement('div');
         msg.className = 'no-doc-msg';
-        msg.innerHTML = '🔒 You cannot modify documents uploaded by other users.';
+        msg.innerHTML = '🔒 You cannot modify documents here.';
         wrap.appendChild(msg);
       }
       
