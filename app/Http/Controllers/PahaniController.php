@@ -227,6 +227,8 @@ class PahaniController extends Controller
         $records  = collect();
         $mandal   = null;
         $village  = null;
+
+        $permissions = $this->getUserPermissions();
  
         if ($request->filled('mandal') && $request->filled('village')) {
             $mandal = Mandal::where('slug', $request->mandal)->firstOrFail();
@@ -245,7 +247,27 @@ class PahaniController extends Controller
                 ->get();
         }
  
-        return view('pahani.view', compact('mandals', 'records', 'mandal', 'village'));
+        return view('pahani.view', compact('mandals', 'records', 'mandal', 'village', 'permissions'));
+    }
+
+    private function getUserPermissions()
+    {
+        $user = auth()->user();
+        
+        // Admin has all permissions
+        if ($user->role === 'admin') {
+            return [
+                'can_view' => true,
+                'can_edit' => true,
+            ];
+        }
+        
+        // Regular users get permissions from database
+        $permissions = $user->getOrCreateDocumentPermission();
+        return [
+            'can_view' => $permissions->can_view,
+            'can_edit' => $permissions->can_edit,
+        ];
     }
 
     // ── SHOW PDF (serve from R2 via signed URL or proxy) ─────────────────────
