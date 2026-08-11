@@ -84,7 +84,7 @@ class User extends Authenticatable
      */
     public function documentPermission(): HasOne
     {
-        return $this->hasOne(UserDocumentPermission::class);
+        return $this->hasOne(UserDocumentPermission::class, 'user_id');
     }
  
     /**
@@ -122,6 +122,60 @@ class User extends Authenticatable
         }
  
         return $this->getOrCreateDocumentPermission()->canEdit();
+    }
+
+    /**
+     * Get upload mandals for this user based on permissions
+     * Returns actual mandal records that user can upload to
+     */
+    public function getUploadMandals()
+    {
+        $mandalIds = $this->documentPermission?->upload_mandal_ids ?? [];
+        
+        if (empty($mandalIds)) {
+            return collect();
+        }
+ 
+        return Mandal::whereIn('id', $mandalIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+    }
+ 
+    /**
+     * Get view mandals for this user based on permissions
+     * Returns actual mandal records that user can view
+     */
+    public function getViewMandals()
+    {
+        $mandalIds = $this->documentPermission?->view_mandal_ids ?? [];
+        
+        if (empty($mandalIds)) {
+            return collect();
+        }
+ 
+        return Mandal::whereIn('id', $mandalIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+    }
+ 
+    /**
+     * Get edit mandals for this user based on permissions
+     * Returns actual mandal records that user can edit
+     */
+    public function getEditMandals()
+    {
+        $mandalIds = $this->documentPermission?->edit_mandal_ids ?? [];
+        
+        if (empty($mandalIds)) {
+            return collect();
+        }
+ 
+        return Mandal::whereIn('id', $mandalIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
     
 }

@@ -10,6 +10,8 @@ use App\Models\WorkingOffice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+
 
 class AdminController extends Controller
 {
@@ -114,6 +116,30 @@ class AdminController extends Controller
             ]);
 
         return response()->json($users);
+    }
+
+    /**
+     * Get all mandals
+     */
+    public function getMandals(Request $request)
+    {
+        $mandals = Mandal::orderBy('name', 'asc')
+            ->get(['id', 'name'])
+            ->toArray();
+ 
+        return response()->json($mandals);
+    }
+ 
+    /**
+     * Get all working offices
+     */
+    public function getWorkingOffices(Request $request)
+    {
+        $offices = WorkingOffice::orderBy('name', 'asc')
+            ->get(['id', 'name'])
+            ->toArray();
+ 
+        return response()->json($offices);
     }
 
     /* ══════════════════════════════════════════════════════════════
@@ -357,67 +383,122 @@ class AdminController extends Controller
     public function updateUser(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'                => ['required', 'string', 'max:255'],
-            'email'               => [
+            'name'                  => ['required', 'string', 'max:255'],
+            'email'                 => [
                 'required', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-            'password'            => ['nullable', 'string', 'min:8', 'confirmed'],
-            'working_office_id'   => ['required', 'integer', 'exists:working_offices,id'],
-            'status'              => ['nullable', 'integer', 'in:0,1'],
-            'mandal_ids'          => ['nullable', 'array'],
-            'mandal_ids.*'        => ['integer', 'exists:mandals,id'],
+            'password'              => ['nullable', 'string', 'min:8', 'confirmed'],
+            'working_office_id'     => ['required', 'integer', 'exists:working_offices,id'],
+            'status'                => ['nullable', 'integer', 'in:0,1'],
             
-            // ← NEW: Document permissions validation
-            'can_view'            => ['nullable', 'boolean'],
-            'can_edit'            => ['nullable', 'boolean'],
+            // Upload mandal permissions
+            'upload_mandal_ids'     => ['nullable', 'array'],
+            'upload_mandal_ids.*'   => ['integer', 'exists:mandals,id'],
+            
+            // View mandal permissions
+            'view_mandal_ids'       => ['nullable', 'array'],
+            'view_mandal_ids.*'     => ['integer', 'exists:mandals,id'],
+            
+            // Edit mandal permissions
+            'edit_mandal_ids'       => ['nullable', 'array'],
+            'edit_mandal_ids.*'     => ['integer', 'exists:mandals,id'],
         ], [
-            'email.unique'              => 'A user with this email already exists.',
-            'working_office_id.required' => 'Working office is required.',
-            'working_office_id.exists'   => 'The selected working office does not exist.',
-            'status.in'                 => 'Status must be 0 (Inactive) or 1 (Active).',
+            'email.unique'                  => 'A user with this email already exists.',
+            'working_office_id.required'    => 'Working office is required.',
+            'working_office_id.exists'      => 'The selected working office does not exist.',
+            'status.in'                     => 'Status must be 0 (Inactive) or 1 (Active).',
+            'upload_mandal_ids.*.integer'   => 'Invalid mandal selected for upload permission.',
+            'upload_mandal_ids.*.exists'    => 'One or more upload mandals do not exist.',
+            'view_mandal_ids.*.integer'     => 'Invalid mandal selected for view permission.',
+            'view_mandal_ids.*.exists'      => 'One or more view mandals do not exist.',
+            'edit_mandal_ids.*.integer'     => 'Invalid mandal selected for edit permission.',
+            'edit_mandal_ids.*.exists'      => 'One or more edit mandals do not exist.',
         ]);
  
-        $user->name              = $validated['name'];
-        $user->email             = $validated['email'];
-        $user->working_office_id = $validated['working_office_id'];
-        $user->status            = $validated['status'];
-        
-        if (! empty($validated['password'])) {
-            $user->password = bcrypt($validated['password']);
-        }
-        $user->save();
+        DB::beginTransaction();
+        try {
+            // Update user basic info
+            $user->name              = $validated['name'];
+            $user->email             = $validated['email'];
+            $user->working_office_id = $validated['working_office_id'];
+            $user->status            = $validated['status'] ?? 1;
+            
+            if (!empty($validated['password'])) {
+                $user->password = bcrypt($validated['password']);
+            }
+            $user->save();
  
-        // Sync mandal assignments
-        $mandalIds = $validated['mandal_ids'] ?? [];
-        $user->mandals()->sync($mandalIds);
+            // Update document permissions with ONLY mandal-specific permissions
+            $permissions = $user->getOrCreateDocumentPermission();
+            $permissions->update([
+                'upload_mandal_ids'  => array_values(array_filter($validated['upload_mandal_ids'] ?? [])),
+                'view_mandal_ids'    => array_values(array_filter($validated['view_mandal_ids'] ?? [])),
+                'edit_mandal_ids'    => array_values(array_filter($validated['edit_mandal_ids'] ?? [])),
+            ]);
  
-        // ← NEW: Update document permissions
-        $permissions = $user->getOrCreateDocumentPermission();
-        $permissions->update([
-            'can_view' => (bool) ($validated['can_view'] ?? false),
-            'can_edit' => (bool) ($validated['can_edit'] ?? false),
-        ]);
+            DB::commit();
  
-        return response()->json([
-            'success' => true,
-            'message' => 'User updated successfully.',
-            'user'    => [
-                'id'                  => $user->id,
-                'name'                => $user->name,
-                'email'               => $user->email,
-                'role'                => $user->role ?? 'User',
-                'working_office_id'   => $user->working_office_id,
-                'status'              => (int) $user->status,
-                'is_active'           => (bool) ($user->is_active ?? true),
-                
-                // ← NEW: Include permissions in response
-                'permissions'         => [
-                    'can_view' => (bool) $permissions->can_view,
-                    'can_edit' => (bool) $permissions->can_edit,
+            return response()->json([
+                'success' => true,
+                'message' => 'User updated successfully.',
+                'user'    => [
+                    'id'                  => $user->id,
+                    'name'                => $user->name,
+                    'email'               => $user->email,
+                    'role'                => $user->role ?? 'User',
+                    'working_office_id'   => $user->working_office_id,
+                    'status'              => (int) $user->status,
+                    'permissions'         => [
+                        'upload_mandal_ids'  => $permissions->getUploadMandalIds(),
+                        'view_mandal_ids'    => $permissions->getViewMandalIds(),
+                        'edit_mandal_ids'    => $permissions->getEditMandalIds(),
+                    ],
                 ],
-            ],
-        ]);
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to update user: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user. ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getUsers(Request $request)
+    {
+        $users = User::with(['workingOffice', 'documentPermission', 'mandals'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id'                  => $user->id,
+                    'name'                => $user->name,
+                    'email'               => $user->email,
+                    'working_office_id'   => $user->working_office_id,
+                    'working_office_name' => $user->workingOffice?->name ?? '—',
+                    'status'              => (bool) $user->status,
+                    'role'                => $user->role ?? 'User',
+                    
+                    // ✅ Include permissions data (THIS IS KEY!)
+                    'permissions'         => [
+                        'upload_mandal_ids'  => $user->documentPermission?->upload_mandal_ids ?? [],
+                        'view_mandal_ids'    => $user->documentPermission?->view_mandal_ids ?? [],
+                        'edit_mandal_ids'    => $user->documentPermission?->edit_mandal_ids ?? [],
+                    ],
+                    
+                    // Include mandals for reference (if needed)
+                    'mandals'             => $user->mandals->map(function ($mandal) {
+                        return [
+                            'id'   => $mandal->id,
+                            'name' => $mandal->name,
+                        ];
+                    })->toArray() ?? [],
+                ];
+            });
+ 
+        return response()->json($users);
     }
 
     /* ══════════════════════════════════════════════════════════════
@@ -523,5 +604,32 @@ class AdminController extends Controller
         $office = WorkingOffice::findOrFail($id);
         $office->delete();
         return response()->json(['success' => true, 'message' => 'Working office deleted successfully']);
+    }
+
+    public function usersList(){
+        
+        return view('admin.users.index');
+    }
+
+    public function show(User $user)
+    {
+        $user->load('documentPermission');
+        
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id'                  => $user->id,
+                'name'                => $user->name,
+                'email'               => $user->email,
+                'role'                => $user->role ?? 'User',
+                'working_office_id'   => $user->working_office_id,
+                'status'              => (int) $user->status,
+                'permissions'         => [
+                    'upload_mandal_ids'  => $user->documentPermission?->upload_mandal_ids ?? [],
+                    'view_mandal_ids'    => $user->documentPermission?->view_mandal_ids ?? [],
+                    'edit_mandal_ids'    => $user->documentPermission?->edit_mandal_ids ?? [],
+                ],
+            ],
+        ]);
     }
 }

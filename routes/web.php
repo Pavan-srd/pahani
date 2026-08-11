@@ -78,14 +78,23 @@ Route::middleware('guest')->group(function () {
 | admin → logged out + admin.login with an error; otherwise → allowed.
 */
 Route::middleware(['is_admin'])->group(function () {
-    Route::get('/admin', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-    Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    // Route::get('/admindashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    // Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    
+    Route::get('/admin', fn() => view('admin.mandals.index'))->name('admin.dashboard');
+    Route::get('/admin/mandals', fn() => view('admin.mandals.index'))->name('admin.mandals.index');
+    Route::get('/admin/villages', fn() => view('admin.villages.index'))->name('admin.villages.index');
+    Route::get('/admin/working-offices', fn() => view('admin.working-offices.index'))->name('admin.working-offices.index');
+    Route::get('/admin/users', [AdminController::class, 'usersList'])->name('admin.users.index');
+
     Route::get('/admin/profile', [AdminController::class, 'profile'])->name('admin.profile');
 
     // JSON list endpoints (sidebar tabs)
     Route::get('/api/admin/mandals', [AdminController::class, 'mandals']);
     Route::get('/api/admin/villages', [AdminController::class, 'villages']);
     Route::get('/api/admin/users', [AdminController::class, 'users']);
+
+    Route::get('api/admin/users/{user}', [AdminController::class, 'show'])->name('admin.users.show');
 
     // Add Mandal / Add Village (modal forms on the dashboard)
     Route::post('/api/admin/mandals', [AdminController::class, 'storeMandal']);

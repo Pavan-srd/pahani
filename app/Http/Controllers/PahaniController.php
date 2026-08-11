@@ -21,15 +21,22 @@ class PahaniController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $mandals = collect();
 
         if ($user) {
-            $mandals = $user->mandals()
-                ->select('mandals.*')
-                ->where('mandals.is_active', true)
-                ->orderBy('mandals.name')
-                ->get();
-        } else {
-            $mandals = collect();
+            // Get the document permission record
+            $documentPermission = $user->documentPermission;
+            
+            // Get upload mandal IDs (stored as JSON array)
+            $uploadMandalIds = $documentPermission?->upload_mandal_ids ?? [];
+            
+            // Fetch actual mandals with those IDs
+            if (!empty($uploadMandalIds) && is_array($uploadMandalIds)) {
+                $mandals = Mandal::whereIn('id', $uploadMandalIds)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get();
+            }
         }
 
         $documents = PahaniDocument::where('is_active', true)
@@ -222,32 +229,67 @@ class PahaniController extends Controller
     // ── VIEW (records display page) ───────────────────────────────────────────
     public function view(Request $request)
     {
-        $mandals = Mandal::where('is_active', true)->orderBy('name')->get();
+        // Get current user and their permissions
+        $user = Auth::user();
+        $documentPermission = $user?->documentPermission;
+        
+        // Get user's mandal IDs where they have VIEW and EDIT permissions
+        $viewMandalIds = $documentPermission?->view_mandal_ids ?? [];
+        $editMandalIds = $documentPermission?->edit_mandal_ids ?? [];
+        
+        // Only show mandals where user has VIEW permission
+        if (!empty($viewMandalIds) && is_array($viewMandalIds)) {
+            $mandals = Mandal::whereIn('id', $viewMandalIds)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+        } else {
+            $mandals = collect();
+        }
  
-        $records  = collect();
-        $mandal   = null;
-        $village  = null;
-
-        $permissions = $this->getUserPermissions();
+        $records = collect();
+        $mandal = null;
+        $village = null;
+        $canView = false;
+        $canEdit = false;
  
+        // If mandal and village are selected
         if ($request->filled('mandal') && $request->filled('village')) {
             $mandal = Mandal::where('slug', $request->mandal)->firstOrFail();
             $village = Village::where('mandal_id', $mandal->id)
                 ->where('slug', $request->village)
                 ->firstOrFail();
- 
-            $records = Pahani::with('pahaniDocument')
-                ->where('mandal_id', $mandal->id)
-                ->where('village_id', $village->id)
-                ->orderBy(
-                    PahaniDocument::select('sort_order')
-                        ->whereColumn('pahani_documents.id', 'pahanis.pahani_document_id')
-                        ->limit(1)
-                )
-                ->get();
+            
+            // Check if user has VIEW permission for this specific mandal
+            $canView = !empty($viewMandalIds) && in_array($mandal->id, $viewMandalIds, true);
+            
+            // Check if user has EDIT permission for this specific mandal
+            $canEdit = !empty($editMandalIds) && in_array($mandal->id, $editMandalIds, true);
+            
+            // Only fetch records if user has VIEW permission
+            if ($canView) {
+                $records = Pahani::with('pahaniDocument')
+                    ->where('mandal_id', $mandal->id)
+                    ->where('village_id', $village->id)
+                    ->orderBy(
+                        PahaniDocument::select('sort_order')
+                            ->whereColumn('pahani_documents.id', 'pahanis.pahani_document_id')
+                            ->limit(1)
+                    )
+                    ->get();
+            }
         }
- 
-        return view('pahani.view', compact('mandals', 'records', 'mandal', 'village', 'permissions'));
+        
+        return view('pahani.view', compact(
+            'mandals', 
+            'records', 
+            'mandal', 
+            'village', 
+            'canView',      // ← New: Can view records for this mandal
+            'canEdit',      // ← New: Can edit records for this mandal
+            'viewMandalIds',    // ← For reference in blade
+            'editMandalIds'     // ← For reference in blade
+        ));
     }
 
     private function getUserPermissions()

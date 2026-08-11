@@ -330,9 +330,11 @@
   </div>
   @php
     $currentUserId = auth()->id();
-    $userMandalIds = auth()->user()?->mandals()
-      ->select('mandals.*')
-      ->pluck('mandals.id')
+    $userMandalIds = auth()->user()?->documentPermission()?->pluck('upload_mandal_ids')
+      ->flatMap(function ($ids) {
+          return is_array($ids) ? $ids : [];
+      })
+      ->unique()
       ->toArray() ?? [];
   @endphp
 
