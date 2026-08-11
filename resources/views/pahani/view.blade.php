@@ -84,10 +84,14 @@
     /* ── VIEW PDF BUTTON ── */
     .btn-view-pdf{display:inline-flex;align-items:center;gap:6px;background:#154360;color:white;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:pointer;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;text-decoration:none;transition:background 0.15s}
     .btn-view-pdf:hover{background:#1a6fa8}
-    .btn-view-pdf-disabled{display:inline-flex;align-items:center;gap:6px;background:#ccc;color:#666;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:not-allowed;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;opacity:0.5}
+    .btn-view-pdf:disabled{background:#ccc;color:#666;cursor:not-allowed;opacity:0.6}
+    .btn-view-pdf-disabled{display:inline-flex;align-items:center;gap:6px;background:#ccc;color:#666;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:not-allowed;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;opacity:0.5;title:'No view permission'}
+    
     .btn-edit-doc{display:inline-flex;align-items:center;gap:6px;background:#f39c12;color:white;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:pointer;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;transition:background 0.15s}
     .btn-edit-doc:hover{background:#e67e22}
+    .btn-edit-doc:disabled{background:#ccc;color:#666;cursor:not-allowed;opacity:0.6}
     .btn-edit-doc-disabled{display:inline-flex;align-items:center;gap:6px;background:#ccc;color:#666;border:none;padding:6px 14px;font-size:10px;font-weight:bold;cursor:not-allowed;border-radius:2px;text-transform:uppercase;letter-spacing:0.3px;opacity:0.5}
+    
     .no-file-tag{font-size:10px;color:#aaa;font-style:italic}
 
     .empty-state{text-align:center;padding:30px 10px;color:#888;font-size:11px}
@@ -124,6 +128,11 @@
     .logout-btn:hover {
         background: #bb2d3b;
     }
+
+    /* ── PERMISSION ALERT ── */
+    .permission-alert{background:#fdecea;border:1px solid #c0392b;border-left:4px solid #c0392b;padding:12px 14px;margin-bottom:14px;border-radius:2px;font-size:11px;color:#7f0000;display:flex;align-items:flex-start;gap:8px}
+    .permission-alert .icon{font-size:14px}
+
     @media(max-width:600px){.form-row{grid-template-columns:1fr}.gov-title-block .dept-name{font-size:14px}}
   </style>
 </head>
@@ -193,440 +202,387 @@
       <div class="section-body">
         <div class="form-row">
           <div class="field-group">
-            <label class="field-label" for="mandal-select">Mandal <span class="req">*</span></label>
-            <div class="field-hint">Select the Mandal jurisdiction</div>
+            <label class="field-label">Select Mandal <span class="req">*</span></label>
             <select id="mandal-select" onchange="onMandalChange()">
-              <option value="">— Select Mandal —</option>
-              @foreach($mandals as $mandal)
-                <option value="{{ $mandal->slug }}" data-id="{{ $mandal->id }}">
-                  {{ $mandal->name }}
-                </option>
-              @endforeach
+              <option value="">— Select a Mandal —</option>
+              @forelse($mandals as $m)
+                <option value="{{ $m->slug }}" data-id="{{ $m->id }}">{{ $m->name }}</option>
+              @empty
+                <option value="" disabled>No mandals available</option>
+              @endforelse
             </select>
+            @if($mandals->isEmpty())
+              <div class="field-hint" style="color: #c0392b; margin-top: 4px;">
+                ⚠️ You don't have view permission for any mandals yet. Please contact your administrator.
+              </div>
+            @endif
           </div>
+
           <div class="field-group">
-            <label class="field-label" for="village-select">Village / Revenue Village <span class="req">*</span></label>
-            <div class="field-hint">Select village within the Mandal</div>
-            <select id="village-select" disabled onchange="onVillageChange()">
-              <option value="">— First Select Mandal —</option>
+            <label class="field-label">Select Village <span class="req">*</span></label>
+            <select id="village-select" onchange="onVillageChange()">
+              <option value="">— Select a Village —</option>
             </select>
-            <div class="loading-bar" id="village-loading">
-              <div class="spinner"></div> Loading villages…
-            </div>
           </div>
         </div>
 
-        <div class="loading-bar" id="records-loading">
-          <div class="spinner"></div> Loading records for this village…
+        <div id="records-loading" class="loading-bar">
+          <div class="spinner"></div>
+          <span>Loading records…</span>
         </div>
       </div>
     </div>
 
-    {{-- ── SECTION 2: RECORDS TABLE ── --}}
-    <div class="section-card" id="records-card" style="display:none">
+    {{-- ── SECTION 2: EXISTING RECORDS ── --}}
+    <div class="section-card">
       <div class="section-header">
         <span class="sec-num">2</span>
-        Pahani Records — Uploaded Documents
+        Pahani Records
       </div>
       <div class="section-body">
+        
+        {{-- PERMISSION ALERTS --}}
+        @if(!$canView && $mandal)
+          <div class="permission-alert">
+            <span class="icon">🔒</span>
+            <span><strong>No View Permission:</strong> You don't have permission to view records for <strong>{{ $mandal->name }}</strong> mandal. Please contact your administrator to request access.</span>
+          </div>
+        @endif
 
-        <div id="existing-info" style="display:none"></div>
+        @if($canView && !$canEdit && $mandal)
+          <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-left:4px solid #27ae60;padding:12px 14px;margin-bottom:14px;border-radius:2px;font-size:11px;color:#1b5e20;display:flex;align-items:flex-start;gap:8px">
+            <span style="font-size:14px">ℹ️</span>
+            <span><strong>View Only:</strong> You can view records but don't have edit permission for this mandal.</span>
+          </div>
+        @endif
 
-        <table class="doc-table" id="doc-table">
-          <thead>
-            <tr>
-              <th style="width:32%">Document Name</th>
-              <th style="width:16%">Physical Document</th>
-              <th style="width:22%">File</th>
-              <th style="width:16%;text-align:center">Action</th>
-            </tr>
-          </thead>
-          <tbody id="doc-tbody"></tbody>
-        </table>
+        {{-- EXISTING BADGE --}}
+        @if($records->count() > 0)
+          <div class="existing-badge">
+            <span class="dot"></span>
+            <span>{{ $records->count() }} Records Found</span>
+          </div>
+        @endif
 
-        <div id="empty-state" class="empty-state" style="display:none">
-          <div class="es-icon">🗂️</div>
-          No Pahani records found for this village yet.
-        </div>
+        {{-- RECORDS TABLE --}}
+        @if($canView && $records->count() > 0)
+          <div style="overflow-x:auto">
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Document Type</th>
+                  <th>File Name</th>
+                  <th>Uploaded Date</th>
+                  <th>File Size</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="records-tbody">
+                @foreach($records as $record)
+                  <tr>
+                    <td>
+                      <strong>{{ $record->pahaniDocument?->label ?? 'N/A' }}</strong>
+                      <div class="doc-desc">{{ $record->pahaniDocument?->description }}</div>
+                    </td>
+                    <td>
+                      @if($record->file_name)
+                        {{ $record->file_name }}
+                      @else
+                        <span class="no-file-tag">No file uploaded</span>
+                      @endif
+                    </td>
+                    <td>{{ $record->created_at ? date('d-M-Y', strtotime($record->created_at)) : 'N/A' }}</td>
+                    <td>
+                      @if($record->file_size)
+                        {{ round($record->file_size / 1024, 2) }} KB
+                      @else
+                        —
+                      @endif
+                    </td>
+                    <td style="display: flex; gap: 6px; align-items: center;">
+                      {{-- VIEW BUTTON --}}
+                      @if($record->file_name)
+                        <a href="{{ route('pahani.view-pdf', $record->id) }}" 
+                           target="_blank" 
+                           class="btn-view-pdf"
+                           title="View PDF document">
+                          👁 View
+                        </a>
+                      @else
+                        <button class="btn-view-pdf-disabled" 
+                                disabled 
+                                title="No file uploaded">
+                          👁 View
+                        </button>
+                      @endif
+
+                      {{-- EDIT BUTTON --}}
+                      @if($canEdit)
+                        <button class="btn-edit-doc"
+                                onclick="openEditPdfModal({{ $record->id }}, '{{ $record->file_name }}', '{{ $record->pahaniDocument?->label }}')"
+                                title="Edit this record">
+                          ✏️ Edit
+                        </button>
+                      @else
+                        <button class="btn-edit-doc-disabled"
+                                disabled
+                                title="No edit permission for this mandal">
+                          ✏️ Edit
+                        </button>
+                      @endif
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @elseif(!$canView && $mandal)
+          <div class="empty-state">
+            <div class="es-icon">🔒</div>
+            <p><strong>Access Denied</strong></p>
+            <p>You don't have permission to view records for this mandal.</p>
+          </div>
+        @elseif($canView && $records->count() === 0 && $mandal)
+          <div class="empty-state">
+            <div class="es-icon">📭</div>
+            <p><strong>No Records</strong></p>
+            <p>No Pahani records found for <strong>{{ $mandal->name }} - {{ $village->name }}</strong></p>
+          </div>
+        @else
+          <div class="empty-state">
+            <div class="es-icon">📋</div>
+            <p><strong>Select a Mandal &amp; Village</strong></p>
+            <p>Please select a mandal and village from the sections above to view records.</p>
+          </div>
+        @endif
+
       </div>
     </div>
 
-  </div>{{-- /main-body --}}
+  </div>
+</div>
 
-  <div class="modal-overlay" id="edit-pdf-modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;" onclick="if(event.target===this) closeEditPdfModal()">
-    <div class="modal-container" style="background:white; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); width:90%; max-width:500px; overflow:auto;">
+{{-- ── EDIT PDF MODAL ── --}}
+<div id="edit-pdf-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+  <div style="background: white; border-radius: 4px; max-width: 500px; width: 90%; padding: 0; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+    
+    {{-- Modal Header --}}
+    <div style="background: #154360; color: white; padding: 16px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0;">
+      <h3 style="margin: 0; font-size: 14px;">✏️ Edit Pahani Record</h3>
+      <button onclick="closeEditPdfModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 0;">✕</button>
+    </div>
+
+    {{-- Modal Body --}}
+    <div style="padding: 20px;">
       
-      <!-- Modal Header -->
-      <div style="padding:16px 20px; border-bottom:1px solid #e0e6ed; display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="margin:0; font-size:14px; font-weight:bold; color:#1a1a2e;">📝 Edit PDF Document</h3>
-        <button onclick="closeEditPdfModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#999;">✕</button>
+      {{-- Alert Messages --}}
+      <div id="edit-error-message" style="background: #fdecea; border: 1px solid #c0392b; border-left: 4px solid #c0392b; color: #7f0000; padding: 12px; border-radius: 2px; margin-bottom: 14px; display: none; font-size: 11px;"></div>
+      <div id="edit-success-message" style="background: #e8f5e9; border: 1px solid #a5d6a7; border-left: 4px solid #27ae60; color: #1b5e20; padding: 12px; border-radius: 2px; margin-bottom: 14px; display: none; font-size: 11px;"></div>
+
+      {{-- Document Info --}}
+      <div style="background: #f8fbfd; border: 1px solid #d0dde8; border-radius: 2px; padding: 10px 12px; margin-bottom: 14px; font-size: 11px;">
+        <div style="color: #666; margin-bottom: 4px;">📄 Document Type:</div>
+        <div style="font-weight: bold; color: #154360;" id="edit-doc-label"></div>
       </div>
 
-      <!-- Modal Body -->
-      <div style="padding:20px;">
-        
-        <!-- Mandal & Village Info -->
-        <div style="margin-bottom:16px; padding:12px; background:#f0f4f8; border-radius:3px;">
-          <div style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Location</div>
-          <div style="font-size:13px; color:#1a1a2e; font-weight:500;">
-            <span id="edit-mandal-name"></span> → <span id="edit-village-name"></span>
-          </div>
-        </div>
-
-        <!-- Document Name -->
-        <div style="margin-bottom:16px; padding:12px; background:#f0f4f8; border-radius:3px;">
-          <div style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Document</div>
-          <div style="font-size:13px; color:#1a1a2e; font-weight:500;" id="edit-document-name"></div>
-        </div>
-
-        <!-- Current File Info -->
-        <div style="margin-bottom:16px; padding:12px; background:#e8f4f8; border-radius:3px; border-left:4px solid #154360;">
-          <div style="font-size:11px; color:#666; text-transform:uppercase; font-weight:bold; margin-bottom:4px;">Current File</div>
-          <div style="font-size:12px; color:#1a1a2e;">
-            📄 <span id="edit-current-filename"></span>
-            <br>
-            <span style="font-size:10px; color:#888;">Size: <span id="edit-current-filesize"></span></span>
-          </div>
-        </div>
-
-        <!-- Upload Form -->
-        <form id="edit-pdf-form" onsubmit="handleEditPdfUpload(event)" style="margin-bottom:16px;">
-          
-          <!-- File Input -->
-          <div style="margin-bottom:16px;">
-            <label style="display:block; font-size:11px; font-weight:bold; color:#1a3a5c; text-transform:uppercase; margin-bottom:8px;">Select New PDF File</label>
-            <input 
-              type="file" 
-              id="edit-pdf-file-input" 
-              name="file" 
-              accept=".pdf" 
-              required 
-              style="display:block; width:100%; padding:8px; border:1px solid #b0c4d8; border-radius:3px; font-size:12px;"
-            >
-            <div style="font-size:10px; color:#888; margin-top:4px;">Maximum file size: 200 MB</div>
-          </div>
-
-          <!-- Progress Bar -->
-          <div id="edit-upload-progress" style="display:none; margin-bottom:16px;">
-            <div style="font-size:11px; font-weight:bold; color:#666; margin-bottom:6px;">Uploading...</div>
-            <div style="background:#e8e8e8; border-radius:2px; height:6px; overflow:hidden;">
-              <div id="edit-progress-bar" style="background:#154360; height:100%; width:0%; transition:width 0.2s;"></div>
-            </div>
-            <div style="font-size:10px; color:#888; margin-top:4px;"><span id="edit-progress-text">0</span>%</div>
-          </div>
-
-          <!-- Submit Button -->
-          <button 
-            type="submit" 
-            id="edit-submit-btn" 
-            style="width:100%; padding:10px; background:#154360; color:white; border:none; border-radius:3px; font-weight:bold; cursor:pointer; transition:background 0.15s;"
-          >
-            🔄 Update PDF
-          </button>
-        </form>
-
-        <!-- Error Message -->
-        <div id="edit-error-message" style="display:none; padding:12px; background:#fee; border:1px solid #fcc; border-radius:3px; color:#c00; font-size:12px; margin-bottom:16px;"></div>
-
-        <!-- Success Message -->
-        <div id="edit-success-message" style="display:none; padding:12px; background:#efe; border:1px solid #cfc; border-radius:3px; color:#060; font-size:12px; margin-bottom:16px;">✔ PDF updated successfully!</div>
-
+      {{-- File Upload --}}
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 11px; font-weight: bold; color: #1a3a5c; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px;">Upload New PDF <span style="color: #c0392b;">*</span></label>
+        <input type="file" 
+               id="edit-file-input" 
+               accept=".pdf" 
+               style="display: block; width: 100%; padding: 8px; border: 1px solid #b0c4d8; border-radius: 2px; font-size: 11px;"
+               onchange="onEditFileSelected()">
+        <div style="font-size: 10px; color: #666; margin-top: 6px;">Only PDF files allowed (max 50 MB)</div>
       </div>
 
-      <!-- Modal Footer -->
-      <div style="padding:16px 20px; border-top:1px solid #e0e6ed; text-align:right;">
-        <button onclick="closeEditPdfModal()" style="padding:8px 16px; background:#f0f4f8; color:#1a1a2e; border:1px solid #b0c4d8; border-radius:3px; cursor:pointer; font-weight:bold;">Cancel</button>
+      {{-- Progress Bar --}}
+      <div id="edit-upload-progress" style="display: none; margin-bottom: 14px;">
+        <div style="font-size: 10px; font-weight: bold; color: #154360; margin-bottom: 4px;">Uploading...</div>
+        <div style="width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+          <div id="edit-progress-bar" style="height: 100%; background: #154360; width: 0%; transition: width 0.3s;"></div>
+        </div>
+        <div style="font-size: 10px; color: #666; margin-top: 4px;"><span id="edit-progress-text">0</span>%</div>
       </div>
 
+    </div>
+
+    {{-- Modal Footer --}}
+    <div style="background: #f8fbfd; padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #d0dde8; border-radius: 0 0 4px 4px;">
+      <button onclick="closeEditPdfModal()" style="background: #e8e8e8; color: #333; border: none; padding: 8px 16px; border-radius: 2px; cursor: pointer; font-size: 11px; font-weight: bold;">Cancel</button>
+      <button id="edit-submit-btn" onclick="submitEditPdf()" style="background: #f39c12; color: white; border: none; padding: 8px 16px; border-radius: 2px; cursor: pointer; font-size: 11px; font-weight: bold;">🔄 Update PDF</button>
     </div>
   </div>
+</div>
 
-</div>{{-- /portal-wrap --}}
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-  // ← NEW: Store user permissions
-  const USER_PERMISSIONS = {
-    can_view: @json($permissions['can_view'] ?? false),
-    can_edit: @json($permissions['can_edit'] ?? false),
-  };
-
-  function confirmLogout() {
-      Swal.fire({
-          title: 'Logout?',
-          text: 'Are you sure you want to logout?',
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#d33',
-          cancelButtonColor: '#6c757d',
-          confirmButtonText: 'Yes, Logout',
-          cancelButtonText: 'Cancel'
-      }).then((result) => {
-          if (result.isConfirmed) {
-              document.getElementById('logoutForm').submit();
-          }
-      });
-  }
-/* ══════════════════════════════════════════════════════════════════
-   MANDAL CHANGE — fetch villages via AJAX
-══════════════════════════════════════════════════════════════════ */
-function onMandalChange() {
-  const mandalSel = document.getElementById('mandal-select');
-  const villageSel = document.getElementById('village-select');
-  const mandalId  = mandalSel.options[mandalSel.selectedIndex]?.dataset?.id;
-
-  villageSel.innerHTML = '<option value="">— Select Village —</option>';
-  villageSel.disabled  = true;
-  hideRecords();
-
-  if (!mandalId) return;
-
-  document.getElementById('village-loading').classList.add('show');
-
-  fetch(`/api/mandals/${mandalId}/villages`, {
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(r => r.json())
-  .then(villages => {
-    villageSel.innerHTML = '<option value="">— Select Village —</option>';
-    villages.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v.slug;
-      o.textContent = v.name;
-      o.dataset.id  = v.id;
-      villageSel.appendChild(o);
-    });
-    villageSel.disabled = false;
-  })
-  .catch(() => showToast('Failed to load villages. Please refresh.', true))
-  .finally(() => document.getElementById('village-loading').classList.remove('show'));
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   VILLAGE CHANGE — load existing Pahani records for that village
-══════════════════════════════════════════════════════════════════ */
-function onVillageChange() {
-  const mandalSel  = document.getElementById('mandal-select');
-  const villageSel = document.getElementById('village-select');
-  const villageOpt = villageSel.options[villageSel.selectedIndex];
-  const villageId  = villageOpt?.dataset?.id;
-  const villageName = villageOpt?.textContent?.trim();
-  const mandalName  = mandalSel.options[mandalSel.selectedIndex]?.textContent?.trim();
-
-  hideRecords();
-  if (!villageId) return;
-
-  document.getElementById('records-loading').classList.add('show');
-
-  fetch(`/api/villages/${villageId}/pahanis`, {
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(r => r.json())
-  .then(records => renderRecords(records, mandalName, villageName))
-  .catch(() => showToast('Failed to load records for this village.', true))
-  .finally(() => document.getElementById('records-loading').classList.remove('show'));
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   RENDER RECORDS TABLE
-══════════════════════════════════════════════════════════════════ */
-function renderRecords(records, mandalName, villageName) {
-  const card  = document.getElementById('records-card');
-  const tbody = document.getElementById('doc-tbody');
-  const empty = document.getElementById('empty-state');
-  const info  = document.getElementById('existing-info');
-
-  card.style.display = 'block';
-  tbody.innerHTML = '';
-
-  if (!records || records.length === 0) {
-    empty.style.display = 'block';
-    info.style.display  = 'none';
-    return;
-  }
-
-  empty.style.display = 'none';
-  info.style.display  = 'block';
-  info.innerHTML = `<div class="existing-badge"><span class="dot"></span>${records.length} record(s) found for ${villageName}, ${mandalName}</div>`;
-  
-  // ← CRITICAL: Store records and location globally for modal access
-  window.PAHANI_RECORDS = records;
-  window.PAHANI_MANDAL_NAME = mandalName;
-  window.PAHANI_VILLAGE_NAME = villageName;
-  
-  // Also need to extract mandal and village slugs - try to get from dropdowns
-  const mandalSel = document.getElementById('mandal-select');
-  const villageSel = document.getElementById('village-select');
-  window.PAHANI_MANDAL_SLUG = mandalSel.value || '';
-  window.PAHANI_VILLAGE_SLUG = villageSel.value || '';
-  
-  records.forEach(rec => {
-    const tr = document.createElement('tr');
-
-    const isYes = rec.physical_document === 'yes';
-    const hasFile = !!rec.file_path;
-
-    // ← NEW: Build View PDF button with permission checks
-    let viewPdfHtml = '';
-    if (hasFile) {
-      if (USER_PERMISSIONS.can_view) {
-        // User has permission to view
-        viewPdfHtml = `<a class="btn-view-pdf" href="/pahani/view-pdf/${rec.id}" target="_blank" rel="noopener">👁 View PDF</a>`;
-      } else {
-        // File exists but no permission
-        viewPdfHtml = `<button class="btn-view-pdf-disabled" disabled title="You don't have permission to view PDFs">👁 View PDF</button>`;
-      }
-    } else {
-      // No file uploaded
-      viewPdfHtml = `<span class="no-file-tag">—</span>`;
-    }
-
-    // ← NEW: Build Edit button with permission checks
-    let editHtml = '';
-    if (USER_PERMISSIONS.can_edit) {
-      editHtml = `<button class="btn-edit-doc" onclick="editRecord(${rec.id})" title="Edit this document">✎ Edit</button>`;
-    } else {
-      editHtml = `<button class="btn-edit-doc-disabled" disabled title="You don't have permission to edit documents">✎ Edit</button>`;
-    }
-
-    tr.innerHTML = `
-      <td>${escapeHtml(rec.document_name || rec.document_value)}</td>
-      <td>
-        <span class="pill ${isYes ? 'pill-yes' : 'pill-no'}">
-          ${isYes ? '✔ Yes' : '— No'}
-        </span>
-      </td>
-      <td>
-        ${hasFile
-          ? `📄 ${escapeHtml(rec.file_name || 'document.pdf')}`
-          : `<span class="no-file-tag">No file uploaded</span>`}
-      </td>
-      <td style="text-align:center; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
-        ${viewPdfHtml}
-        ${editHtml}
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function hideRecords() {
-  document.getElementById('records-card').style.display = 'none';
-  document.getElementById('doc-tbody').innerHTML = '';
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('existing-info').style.display = 'none';
-}
-
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str ?? '';
-  return d.innerHTML;
-}
-
-function showToast(msg, isError = false) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.display = 'block';
-  t.style.borderLeftColor = isError ? '#c0392b' : '#f39c12';
-  t.style.background = isError ? '#7f0000' : '#154360';
-  setTimeout(() => t.style.display = 'none', 4500);
-}
-
-// Store current record being edited
+// ============================================================
+// GLOBAL STATE
+// ============================================================
 let currentEditRecord = null;
 
-/**
- * Open edit modal for a record
- * @param {number} pahaniId - ID of the record to edit
- */
-function editRecord(pahaniId) {
-  // Find the record from the table
-  const records = window.PAHANI_RECORDS || [];
-  currentEditRecord = records.find(r => r.id === pahaniId);
+// Permission flags from backend
+const USER_CAN_VIEW = {{ $canView ? 'true' : 'false' }};
+const USER_CAN_EDIT = {{ $canEdit ? 'true' : 'false' }};
+const VIEW_MANDAL_IDS = {!! json_encode($viewMandalIds) !!};
+const EDIT_MANDAL_IDS = {!! json_encode($editMandalIds) !!};
+
+console.log('Permissions loaded:', {
+  canView: USER_CAN_VIEW,
+  canEdit: USER_CAN_EDIT,
+  viewMandalIds: VIEW_MANDAL_IDS,
+  editMandalIds: EDIT_MANDAL_IDS
+});
+
+// ============================================================
+// MANDAL DROPDOWN CHANGE
+// ============================================================
+async function onMandalChange() {
+  const mandalSelect = document.getElementById('mandal-select');
+  const mandalSlug = mandalSelect.value;
+  const mandalId = mandalSelect.options[mandalSelect.selectedIndex]?.dataset?.id;
+
+  if (!mandalSlug || !mandalId) {
+    document.getElementById('village-select').innerHTML = '<option value="">— Select a Village —</option>';
+    return;
+  }
+
+  // Check if user has view permission for this mandal
+  const hasViewPerm = VIEW_MANDAL_IDS && VIEW_MANDAL_IDS.includes(parseInt(mandalId));
   
-  if (!currentEditRecord) {
-    showToast('Record not found.', true);
+  if (!hasViewPerm) {
+    showToast('❌ You don\'t have permission to view this mandal', true);
+    mandalSelect.value = '';
     return;
   }
 
-  if (!currentEditRecord.file_path) {
-    showToast('This record has no file to edit.', true);
-    return;
+  // Fetch villages for this mandal
+  try {
+    const response = await fetch(`/api/mandals/${mandalId}/villages`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await response.json();
+    const villages = data.data || [];
+    
+    const villageSelect = document.getElementById('village-select');
+    villageSelect.innerHTML = '<option value="">— Select a Village —</option>';
+    
+    villages.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.slug;
+      opt.dataset.id = v.id;
+      opt.textContent = v.name;
+      villageSelect.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('Failed to load villages:', err);
+    showToast('Failed to load villages', true);
   }
-
-  // Populate modal with record data
-  document.getElementById('edit-mandal-name').textContent = window.PAHANI_MANDAL_NAME || 'Mandal';
-  document.getElementById('edit-village-name').textContent = window.PAHANI_VILLAGE_NAME || 'Village';
-  document.getElementById('edit-document-name').textContent = currentEditRecord.document_name || currentEditRecord.document_value;
-  document.getElementById('edit-current-filename').textContent = currentEditRecord.file_name || 'document.pdf';
-  document.getElementById('edit-current-filesize').textContent = currentEditRecord.file_size_human || 'Unknown';
-
-  // Clear form
-  document.getElementById('edit-pdf-file-input').value = '';
-  document.getElementById('edit-error-message').style.display = 'none';
-  document.getElementById('edit-success-message').style.display = 'none';
-  document.getElementById('edit-upload-progress').style.display = 'none';
-  document.getElementById('edit-submit-btn').disabled = false;
-  document.getElementById('edit-submit-btn').textContent = '🔄 Update PDF';
-
-  // Show modal
-  document.getElementById('edit-pdf-modal-overlay').style.display = 'flex';
 }
 
-/**
- * Close edit modal
- */
+// ============================================================
+// VILLAGE DROPDOWN CHANGE
+// ============================================================
+function onVillageChange() {
+  const mandalSel = document.getElementById('mandal-select');
+  const villageSel = document.getElementById('village-select');
+
+  if (!mandalSel.value || !villageSel.value) return;
+
+  // Redirect to view with selected mandal and village
+  const url = `/pahani/view?mandal=${mandalSel.value}&village=${villageSel.value}`;
+  window.location.href = url;
+}
+
+// ============================================================
+// OPEN EDIT PDF MODAL
+// ============================================================
+function openEditPdfModal(recordId, fileName, docLabel) {
+  if (!USER_CAN_EDIT) {
+    showToast('❌ You don\'t have permission to edit this record', true);
+    return;
+  }
+
+  currentEditRecord = { id: recordId, file_name: fileName, doc_label: docLabel };
+  
+  document.getElementById('edit-doc-label').textContent = docLabel;
+  document.getElementById('edit-file-input').value = '';
+  document.getElementById('edit-error-message').style.display = 'none';
+  document.getElementById('edit-success-message').style.display = 'none';
+  
+  const modal = document.getElementById('edit-pdf-modal');
+  modal.style.display = 'flex';
+}
+
+// ============================================================
+// CLOSE EDIT PDF MODAL
+// ============================================================
 function closeEditPdfModal() {
-  document.getElementById('edit-pdf-modal-overlay').style.display = 'none';
+  document.getElementById('edit-pdf-modal').style.display = 'none';
   currentEditRecord = null;
 }
 
-/**
- * Handle PDF upload and update
- */
-async function handleEditPdfUpload(e) {
-  e.preventDefault();
+// ============================================================
+// FILE SELECTED HANDLER
+// ============================================================
+function onEditFileSelected() {
+  const input = document.getElementById('edit-file-input');
+  const file = input.files[0];
 
-  if (!currentEditRecord) {
-    showToast('No record selected.', true);
+  if (!file) return;
+
+  // Validate file type
+  if (file.type !== 'application/pdf') {
+    showToast('❌ Only PDF files are allowed', true);
+    input.value = '';
     return;
   }
 
-  const fileInput = document.getElementById('edit-pdf-file-input');
+  // Validate file size (50 MB)
+  const maxSize = 50 * 1024 * 1024;
+  if (file.size > maxSize) {
+    showToast('❌ File size exceeds 50 MB limit', true);
+    input.value = '';
+    return;
+  }
+
+  showToast('✔ File selected: ' + file.name);
+}
+
+// ============================================================
+// SUBMIT EDIT PDF
+// ============================================================
+async function submitEditPdf() {
+  const fileInput = document.getElementById('edit-file-input');
   const file = fileInput.files[0];
 
   if (!file) {
-    showErrorMessage('Please select a file.');
+    showToast('❌ Please select a file to upload', true);
     return;
   }
 
-  if (file.type !== 'application/pdf') {
-    showErrorMessage('Only PDF files are allowed.');
-    return;
-  }
-
-  if (file.size > 200 * 1024 * 1024) { // 200 MB
-    showErrorMessage('File size must be less than 200 MB.');
+  if (!currentEditRecord) {
+    showToast('❌ Record not found', true);
     return;
   }
 
   const submitBtn = document.getElementById('edit-submit-btn');
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Updating…';
+  submitBtn.textContent = '⏳ Updating…';
 
   try {
-    // Step 1: Get presigned upload URL
-    const presignResponse = await fetch('/pahani/presign', {
+    // Step 1: Get presigned URL from backend
+    const presignResponse = await fetch(`/pahani/${currentEditRecord.id}/get-presign-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+        'X-Requested-With': 'XMLHttpRequest',
       },
       body: JSON.stringify({
-        mandal: window.PAHANI_MANDAL_SLUG || '',
-        village: window.PAHANI_VILLAGE_SLUG || '',
-        docValue: currentEditRecord.document_value,
-        fileMime: file.type,
+        file_name: file.name,
+        file_mime: file.type,
+        file_size: file.size,
       }),
     });
 
@@ -668,7 +624,7 @@ async function handleEditPdfUpload(e) {
         file_name: file.name,
         file_size: file.size,
         file_mime: file.type,
-        old_file_path: currentEditRecord.file_path, // For deletion
+        old_file_path: currentEditRecord.file_path,
       }),
     });
 
@@ -687,7 +643,6 @@ async function handleEditPdfUpload(e) {
     showSuccessMessage('PDF updated successfully!');
     setTimeout(() => {
       closeEditPdfModal();
-      // Refresh the records
       if (window.loadRecords) {
         window.loadRecords();
       }
@@ -702,14 +657,13 @@ async function handleEditPdfUpload(e) {
   }
 }
 
-/**
- * Upload file to Cloudflare R2 with progress tracking
- */
+// ============================================================
+// UPLOAD TO R2
+// ============================================================
 async function uploadToR2(presignedUrl, file, headers) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
-    // Track upload progress
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) {
         const percentComplete = Math.round((e.loaded / e.total) * 100);
@@ -735,7 +689,6 @@ async function uploadToR2(presignedUrl, file, headers) {
 
     xhr.open('PUT', presignedUrl);
 
-    // Set headers
     if (headers) {
       Object.entries(headers).forEach(([key, value]) => {
         xhr.setRequestHeader(key, value);
@@ -746,9 +699,9 @@ async function uploadToR2(presignedUrl, file, headers) {
   });
 }
 
-/**
- * Show progress bar
- */
+// ============================================================
+// PROGRESS BAR
+// ============================================================
 function showProgressBar(show) {
   document.getElementById('edit-upload-progress').style.display = show ? 'block' : 'none';
   if (show) {
@@ -756,17 +709,14 @@ function showProgressBar(show) {
   }
 }
 
-/**
- * Update progress bar
- */
 function updateProgressBar(percent) {
   document.getElementById('edit-progress-bar').style.width = percent + '%';
   document.getElementById('edit-progress-text').textContent = percent;
 }
 
-/**
- * Show error message
- */
+// ============================================================
+// MESSAGES
+// ============================================================
 function showErrorMessage(message) {
   const errorDiv = document.getElementById('edit-error-message');
   errorDiv.textContent = message;
@@ -774,9 +724,6 @@ function showErrorMessage(message) {
   document.getElementById('edit-success-message').style.display = 'none';
 }
 
-/**
- * Show success message
- */
 function showSuccessMessage(message) {
   const successDiv = document.getElementById('edit-success-message');
   successDiv.textContent = message;
@@ -784,42 +731,37 @@ function showSuccessMessage(message) {
   document.getElementById('edit-error-message').style.display = 'none';
 }
 
-/**
- * Reload records from server (called after edit)
- */
-function loadRecords() {
-  const mandalSel = document.getElementById('mandal-select');
-  const villageSel = document.getElementById('village-select');
-  const villageId = villageSel.options[villageSel.selectedIndex]?.dataset?.id;
+// ============================================================
+// TOAST NOTIFICATION
+// ============================================================
+function showToast(message, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.style.background = isError ? '#c0392b' : '#154360';
+  toast.style.display = 'block';
   
-  if (!villageId) return;
-  
-  document.getElementById('records-loading').classList.add('show');
-  
-  fetch(`/api/villages/${villageId}/pahanis`, {
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(r => r.json())
-  .then(records => {
-    const mandalName = mandalSel.options[mandalSel.selectedIndex]?.textContent?.trim();
-    const villageName = villageSel.options[villageSel.selectedIndex]?.textContent?.trim();
-    renderRecords(records, mandalName, villageName);
-  })
-  .catch(err => {
-    console.error('Failed to reload records:', err);
-    showToast('Failed to reload records', true);
-  })
-  .finally(() => document.getElementById('records-loading').classList.remove('show'));
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 3000);
 }
 
-// Store records and location data globally for modal
+// ============================================================
+// LOGOUT
+// ============================================================
+function confirmLogout() {
+  if (confirm('Are you sure you want to logout?')) {
+    document.getElementById('logoutForm').submit();
+  }
+}
+
+// ============================================================
+// INITIALIZE
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // This will be set when records are loaded
-  window.PAHANI_RECORDS = [];
-  window.PAHANI_MANDAL_NAME = '';
-  window.PAHANI_VILLAGE_NAME = '';
-  window.PAHANI_MANDAL_SLUG = '';
-  window.PAHANI_VILLAGE_SLUG = '';
+  console.log('Page initialized with permissions:', {
+    canView: USER_CAN_VIEW,
+    canEdit: USER_CAN_EDIT,
+  });
 });
 </script>
 
