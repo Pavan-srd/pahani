@@ -172,6 +172,9 @@
         </a>
 
         <div class="nav-section-label">Access Control</div>
+        <a class="sb-item" href="{{ route('admin.pahani-management.index') }}">
+          <span class="sb-icon">👤</span> Pahani Management
+        </a>
         <a class="sb-item active" href="{{ route('admin.users.index') }}">
           <span class="sb-icon">👤</span> Users List
         </a>
