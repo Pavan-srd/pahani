@@ -363,7 +363,7 @@
 </div>
 
 {{-- ── EDIT PDF MODAL ── --}}
-<div id="edit-pdf-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+<div id="edit-pdf-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;">
   <div style="background: white; border-radius: 4px; max-width: 500px; width: 90%; padding: 0; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
     
     {{-- Modal Header --}}
@@ -456,16 +456,37 @@ async function onMandalChange() {
     return;
   }
 
+  // Show loading state
+  const villageSelect = document.getElementById('village-select');
+  villageSelect.innerHTML = '<option value="">Loading villages…</option>';
+  villageSelect.disabled = true;
+
   // Fetch villages for this mandal
   try {
     const response = await fetch(`/api/mandals/${mandalId}/villages`, {
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
-    const data = await response.json();
-    const villages = data.data || [];
     
-    const villageSelect = document.getElementById('village-select');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Handle both response formats:
+    // Format 1: { data: [...] }
+    // Format 2: [...] (direct array)
+    let villages = Array.isArray(data) ? data : (data.data || []);
+    
+    console.log('Villages loaded:', villages);
+    
     villageSelect.innerHTML = '<option value="">— Select a Village —</option>';
+    villageSelect.disabled = false;
+    
+    if (villages.length === 0) {
+      showToast('⚠️ No villages found for this mandal', true);
+      return;
+    }
     
     villages.forEach(v => {
       const opt = document.createElement('option');
@@ -474,9 +495,14 @@ async function onMandalChange() {
       opt.textContent = v.name;
       villageSelect.appendChild(opt);
     });
+    
+    showToast(`✔ ${villages.length} villages loaded`);
+    
   } catch (err) {
     console.error('Failed to load villages:', err);
-    showToast('Failed to load villages', true);
+    showToast('❌ Failed to load villages. Please try again.', true);
+    villageSelect.innerHTML = '<option value="">— Select a Village —</option>';
+    villageSelect.disabled = false;
   }
 }
 
