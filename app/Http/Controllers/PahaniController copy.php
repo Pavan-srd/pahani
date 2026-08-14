@@ -108,12 +108,7 @@ class PahaniController extends Controller
                 // Guard against a forged/mismatched key: it must live under this mandal/village/doc path
                 if ($r2Key) {
                     $expectedPrefix = "pahani/{$mandal->slug}/{$village->slug}/{$docValue}/";
-                    $keyExt = strtolower(pathinfo($r2Key, PATHINFO_EXTENSION));
-                    if (
-                        !Str::startsWith($r2Key, $expectedPrefix) ||
-                        !in_array($keyExt, ['pdf', 'tif', 'tiff'], true) ||
-                        !Storage::disk('r2')->exists($r2Key)
-                    ) {
+                    if (!Str::startsWith($r2Key, $expectedPrefix) || !Storage::disk('r2')->exists($r2Key)) {
                         $errors[] = "Row {$rowNum}: Uploaded file could not be verified.";
                         continue;
                     }
@@ -200,10 +195,6 @@ class PahaniController extends Controller
             'village'  => ['required', 'string'],
             'docValue' => ['required', 'string', 'exists:pahani_documents,value'],
             'fileMime' => ['required', 'string'],
-            // Browsers report inconsistent/empty MIME types for TIFF (image/tiff,
-            // image/x-tiff, or blank on some Windows setups), so the extension the
-            // client parsed from the filename is the source of truth here.
-            'fileExt'  => ['required', 'string', 'in:pdf,tif,tiff'],
         ]);
 
         $mandal = Mandal::where('slug', $request->mandal)->where('is_active', true)->firstOrFail();
@@ -212,28 +203,26 @@ class PahaniController extends Controller
             ->where('is_active', true)
             ->firstOrFail();
 
-        $ext = strtolower($request->fileExt);
-
-        // Content-Type sent to R2 must match what the browser will actually send
-        // in the PUT request, or the signature/policy will reject the upload.
-        $contentType = $ext === 'pdf' ? 'application/pdf' : 'image/tiff';
+        if ($request->fileMime !== 'application/pdf') {
+            return response()->json(['success' => false, 'message' => 'Only PDF files are allowed.'], 422);
+        }
 
         $key = implode('/', [
             'pahani', $mandal->slug, $village->slug,
-            $request->docValue, Str::uuid() . '.' . $ext,
+            $request->docValue, Str::uuid() . '.pdf',
         ]);
 
         $signed = Storage::disk('r2')->temporaryUploadUrl(
             $key,
             now()->addMinutes(20),
-            ['ContentType' => $contentType]
+            ['ContentType' => $request->fileMime]
         );
 
         return response()->json([
             'success' => true,
             'key'     => $key,
             'url'     => $signed['url'],
-            'headers' => $signed['headers'] ?? ['Content-Type' => $contentType],
+            'headers' => $signed['headers'] ?? ['Content-Type' => $request->fileMime],
         ]);
     }
 
@@ -468,25 +457,10 @@ class PahaniController extends Controller
             abort(500, 'Unable to generate secure URL');
         }
  
-        $viewName = $this->isTiff($pahani) ? 'pahani.tiff-viewer' : 'pahani.pdf-viewer';
-
-        return view($viewName, [
+        return view('pahani.pdf-viewer', [
             'pahani'       => $pahani,
-            'pdfSourceUrl' => $cloudflareUrl,  // ← Direct Cloudflare URL (used by both viewers)
+            'pdfSourceUrl' => $cloudflareUrl,  // ← Direct Cloudflare URL
         ]);
-    }
-
-    /**
-     * Whether a Pahani record's stored file is a TIFF (vs the default PDF).
-     * Checks the stored MIME first, falling back to the file extension since
-     * older rows may not have file_mime populated.
-     */
-    private function isTiff(Pahani $pahani): bool
-    {
-        $mime = strtolower($pahani->file_mime ?? '');
-        $ext  = strtolower(pathinfo($pahani->file_path ?? '', PATHINFO_EXTENSION));
-
-        return in_array($mime, ['image/tiff', 'image/x-tiff'], true) || in_array($ext, ['tif', 'tiff'], true);
     }
     
     /**
@@ -508,7 +482,6 @@ class PahaniController extends Controller
         }
     
         $stream = Storage::disk($disk)->readStream($pahani->file_path);
-        $mime   = $pahani->file_mime ?: ($this->isTiff($pahani) ? 'image/tiff' : 'application/pdf');
     
         return response()->stream(function () use ($stream) {
             fpassthru($stream);
@@ -516,7 +489,7 @@ class PahaniController extends Controller
                 fclose($stream);
             }
         }, 200, [
-            'Content-Type'        => $mime,
+            'Content-Type'        => 'application/pdf',
             // No filename in Content-Disposition — reduces the "Save As" hint browsers show.
             'Content-Disposition' => 'inline',
             'Cache-Control'       => 'no-store, no-cache, must-revalidate, max-age=0',
@@ -674,11 +647,6 @@ class PahaniController extends Controller
             'file_mime'        => ['required', 'string'],
             'old_file_path'    => ['nullable', 'string'],
         ]);
-
-        $keyExt = strtolower(pathinfo($request->r2_key, PATHINFO_EXTENSION));
-        if (!in_array($keyExt, ['pdf', 'tif', 'tiff'], true)) {
-            return response()->json(['success' => false, 'message' => 'Only PDF or TIFF files are allowed.'], 422);
-        }
 
         DB::beginTransaction();
         try {

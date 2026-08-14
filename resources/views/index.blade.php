@@ -713,6 +713,19 @@ function rebuildAllDropdowns() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   FILE TYPE HELPERS
+   Browsers report TIFF MIME types inconsistently (image/tiff,
+   image/x-tiff, or blank on some Windows setups), so validate by
+   filename extension instead of relying on file.type.
+══════════════════════════════════════════════════════════════════ */
+function getFileExt(file) {
+  return (file.name.split('.').pop() || '').toLowerCase();
+}
+function isAllowedDocFile(file) {
+  return ['pdf', 'tif', 'tiff'].includes(getFileExt(file));
+}
+
+/* ══════════════════════════════════════════════════════════════════
    RENDER UPLOAD CELL
 ══════════════════════════════════════════════════════════════════ */
 function renderUploadCell(id) {
@@ -735,14 +748,14 @@ function renderUploadCell(id) {
     // New upload zone
     const zone = document.createElement('div');
     zone.className = 'upload-zone';
-    zone.innerHTML = `<input type="file" accept=".pdf">
+    zone.innerHTML = `<input type="file" accept=".pdf,.tif,.tiff">
       <div class="uz-icon">📄</div>
-      <div class="uz-text">${row.existingFileName ? 'Click to replace PDF' : 'Click to upload PDF'}</div>`;
+      <div class="uz-text">${row.existingFileName ? 'Click to replace PDF/TIFF' : 'Click to upload PDF or TIFF'}</div>`;
     const fi = zone.querySelector('input');
     fi.addEventListener('change', () => {
       const f = fi.files[0];
       if (!f) return;
-      if (f.type !== 'application/pdf') { showToast('Only PDF files are allowed.', true); fi.value=''; return; }
+      if (!isAllowedDocFile(f)) { showToast('Only PDF or TIFF files are allowed.', true); fi.value=''; return; }
       row.fileName = f.name;
       state.files[id] = f;
       const old = wrap.querySelector('.uploaded-file');
@@ -899,14 +912,14 @@ function renderTable() {
       if (canEdit) {
         const zone = document.createElement('div');
         zone.className = 'upload-zone';
-        zone.innerHTML = `<input type="file" accept=".pdf">
+        zone.innerHTML = `<input type="file" accept=".pdf,.tif,.tiff">
           <div class="uz-icon">📄</div>
-          <div class="uz-text">${row.existingFileName ? 'Replace PDF' : 'Click to upload PDF'}</div>`;
+          <div class="uz-text">${row.existingFileName ? 'Replace PDF/TIFF' : 'Click to upload PDF or TIFF'}</div>`;
         const fi = zone.querySelector('input');
         fi.addEventListener('change', () => {
           const f = fi.files[0];
           if (!f) return;
-          if (f.type !== 'application/pdf') { showToast('Only PDF files are allowed.', true); fi.value=''; return; }
+          if (!isAllowedDocFile(f)) { showToast('Only PDF or TIFF files are allowed.', true); fi.value=''; return; }
           row.fileName = f.name;
           state.files[row.id] = f;
           const old = wrap.querySelector('.uploaded-file');
@@ -1063,6 +1076,8 @@ async function submitForm() {
   }
 
   async function getPresignedUrl(mandal, village, docValue, file) {
+    const ext = getFileExt(file);
+    const fallbackMime = ext === 'pdf' ? 'application/pdf' : 'image/tiff';
     const res = await fetch('{{ route("pahani.presign") }}', {
       method: 'POST',
       headers: {
@@ -1070,7 +1085,7 @@ async function submitForm() {
         'Accept': 'application/json',
         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
       },
-      body: JSON.stringify({ mandal, village, docValue, fileMime: file.type || 'application/pdf' }),
+      body: JSON.stringify({ mandal, village, docValue, fileMime: file.type || fallbackMime, fileExt: ext }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.message || 'Could not prepare upload.');
@@ -1087,7 +1102,7 @@ async function submitForm() {
         await uploadFileWithProgress(url, file, headers, pct => updateRowProgress(row.id, pct));
         row.r2Key   = key;
         row.fileSize = file.size;
-        row.fileMime = file.type || 'application/pdf';
+        row.fileMime = file.type || (getFileExt(file) === 'pdf' ? 'application/pdf' : 'image/tiff');
         updateRowProgress(row.id, 100);
       });
 

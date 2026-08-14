@@ -286,14 +286,7 @@
                     </td>
                     <td>
                       @if($record->file_name)
-                        @php
-                          $ext = strtolower(pathinfo($record->file_name, PATHINFO_EXTENSION));
-                          $isTiffFile = in_array($ext, ['tif', 'tiff']);
-                        @endphp
                         {{ $record->file_name }}
-                        <span style="font-size:9px;font-weight:bold;padding:1px 5px;border-radius:2px;margin-left:6px;{{ $isTiffFile ? 'background:#eaf2f8;color:#154360' : 'background:#fdecea;color:#7f0000' }}">
-                          {{ $isTiffFile ? 'TIFF' : 'PDF' }}
-                        </span>
                       @else
                         <span class="no-file-tag">No file uploaded</span>
                       @endif
@@ -397,10 +390,10 @@
         <label style="display: block; font-size: 11px; font-weight: bold; color: #1a3a5c; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px;">Upload New PDF <span style="color: #c0392b;">*</span></label>
         <input type="file" 
                id="edit-file-input" 
-               accept=".pdf,.tif,.tiff" 
+               accept=".pdf" 
                style="display: block; width: 100%; padding: 8px; border: 1px solid #b0c4d8; border-radius: 2px; font-size: 11px;"
                onchange="onEditFileSelected()">
-        <div style="font-size: 10px; color: #666; margin-top: 6px;">PDF or TIFF files allowed (max 50 MB)</div>
+        <div style="font-size: 10px; color: #666; margin-top: 6px;">Only PDF files allowed (max 50 MB)</div>
       </div>
 
       {{-- Progress Bar --}}
@@ -564,20 +557,17 @@ function onEditFileSelected() {
 
   if (!file) return;
 
-  // Validate file type by extension — browsers report TIFF MIME types
-  // inconsistently (image/tiff, image/x-tiff, or blank), so file.type alone
-  // isn't reliable.
-  const ext = (file.name.split('.').pop() || '').toLowerCase();
-  if (!['pdf', 'tif', 'tiff'].includes(ext)) {
-    showToast('❌ Only PDF or TIFF files are allowed', true);
+  // Validate file type
+  if (file.type !== 'application/pdf') {
+    showToast('❌ Only PDF files are allowed', true);
     input.value = '';
     return;
   }
 
-  // Validate file size (250 MB — matches the large scanned PDFs/TIFFs this system stores)
-  const maxSize = 250 * 1024 * 1024;
+  // Validate file size (50 MB)
+  const maxSize = 50 * 1024 * 1024;
   if (file.size > maxSize) {
-    showToast('❌ File size exceeds 250 MB limit', true);
+    showToast('❌ File size exceeds 50 MB limit', true);
     input.value = '';
     return;
   }
@@ -606,9 +596,6 @@ async function submitEditPdf() {
   submitBtn.disabled = true;
   submitBtn.textContent = '⏳ Updating…';
 
-  const ext = (file.name.split('.').pop() || '').toLowerCase();
-  const fileMime = file.type || (ext === 'pdf' ? 'application/pdf' : 'image/tiff');
-
   try {
     // Step 1: Get presigned URL from backend
     const presignResponse = await fetch(`/pahani/${currentEditRecord.id}/get-presign-url`, {
@@ -620,8 +607,7 @@ async function submitEditPdf() {
       },
       body: JSON.stringify({
         file_name: file.name,
-        file_mime: fileMime,
-        file_ext: ext,
+        file_mime: file.type,
         file_size: file.size,
       }),
     });
@@ -663,7 +649,7 @@ async function submitEditPdf() {
         r2_key: presignData.key,
         file_name: file.name,
         file_size: file.size,
-        file_mime: fileMime,
+        file_mime: file.type,
         old_file_path: currentEditRecord.file_path,
       }),
     });
