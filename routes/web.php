@@ -5,6 +5,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuthController;
+use App\Http\Controllers\ReportsController;
 
 Route::get('/dashboard', [PahaniController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -38,7 +39,8 @@ Route::middleware('auth')->group(function () {
     // AJAX: existing pahani records for a village
     Route::get('/api/villages/{village}/pahanis', [PahaniController::class, 'apiVillagePahanis']);
 
-    
+    Route::get('/reports/user', [ReportsController::class, 'userReport'])->name('reports.user');
+
 });
 
 /*
@@ -149,6 +151,9 @@ Route::middleware(['is_admin'])->group(function () {
         Route::get('/export', [\App\Http\Controllers\Admin\PahaniManagementController::class, 'export'])
             ->name('export');
     });
+
+    Route::get('/reports/admin', [ReportsController::class, 'adminReport'])->name('reports.admin');
+
 });
 
 require __DIR__.'/auth.php';

@@ -164,7 +164,7 @@
           <a class="nav-item" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
           <a class="nav-item active" href="{{ route('pahani.view') }}">📋 View Records</a>
           <a class="nav-item" href="#">🔍 Search</a>
-          <a class="nav-item" href="#">📊 Reports</a>
+          <a class="nav-item" href="{{ route('reports.user') }}">📊 Reports</a>
           <a class="nav-item" href="#">⚙️ Settings</a>
       </div>
 
