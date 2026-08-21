@@ -240,35 +240,65 @@
     {{-- ── MANDAL WISE SUMMARY TABLE ── --}}
     <div class="section-card">
       <div class="section-header">
-        📁 Mandal-wise Upload Summary
+        📁 Mandal-wise Upload Summary (Detailed)
       </div>
       <div class="section-body">
         @if($mandalUploads->count() > 0)
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Mandal Name</th>
-                <th>Total Documents Uploaded</th>
-                <th>% of System Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($mandalUploads as $mandal)
+          <div style="overflow-x:auto">
+            <table class="table">
+              <thead>
                 <tr>
-                  <td><strong>{{ $mandal['mandal'] }}</strong></td>
-                  <td>{{ $mandal['uploads'] }} documents</td>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:6px">
-                      <div class="progress-bar" style="flex:1;min-width:80px">
-                        <div class="progress-fill" style="width:{{ $totalSystemUploads > 0 ? ($mandal['uploads'] / $totalSystemUploads) * 100 : 0 }}%"></div>
-                      </div>
-                      <strong>{{ $totalSystemUploads > 0 ? round(($mandal['uploads'] / $totalSystemUploads) * 100, 1) : 0 }}%</strong>
-                    </div>
-                  </td>
+                  <th>Mandal Name</th>
+                  <th>Villages</th>
+                  <th>Uploads</th>
+                  <th>Documents</th>
+                  <th>Completion</th>
+                  <th>% of System</th>
                 </tr>
-              @endforeach
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @foreach($mandalUploads as $mandal)
+                  <tr>
+                    <td><strong>{{ $mandal['mandal'] }}</strong></td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['uploaded_villages'] }}/{{ $mandal['total_villages'] }}</strong>
+                        <span style="color:#666"> villages</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['uploaded_documents'] }}</strong> uploaded
+                        <br><span style="color:#c0392b">{{ $mandal['pending_documents'] }}</span> pending
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['total_document_types'] }}</strong> types
+                        <br><span style="color:#666">{{ $mandal['uploaded_documents'] }} / {{ $mandal['total_document_types'] }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px;min-width:100px">
+                        <div class="progress-bar" style="flex:1">
+                          <div class="progress-fill" style="width:{{ $mandal['completion_percentage'] }}%;background:{{ $mandal['completion_percentage'] >= 75 ? '#27ae60' : ($mandal['completion_percentage'] >= 50 ? '#f39c12' : '#c0392b') }}"></div>
+                        </div>
+                        <strong style="min-width:40px;font-size:10px">{{ $mandal['completion_percentage'] }}%</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px;min-width:80px">
+                        <div class="progress-bar" style="flex:1">
+                          <div class="progress-fill" style="width:{{ $totalSystemUploads > 0 ? ($mandal['uploads'] / $totalSystemUploads) * 100 : 0 }}%"></div>
+                        </div>
+                        <strong style="min-width:50px;font-size:10px">{{ $totalSystemUploads > 0 ? round(($mandal['uploads'] / $totalSystemUploads) * 100, 1) : 0 }}%</strong>
+                      </div>
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
         @else
           <div class="empty-state">
             <div class="es-icon">📭</div>

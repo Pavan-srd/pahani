@@ -40,18 +40,54 @@ class ReportsController extends Controller
 
         $totalMandalsUploaded = $mandalsWithUploads->count();
 
-        // Build mandal summary
+        // Build mandal summary with village and document details
         $mandalSummary = [];
         $totalUploads = 0;
         
         foreach ($assignedMandals as $mandal) {
+            // Uploads for this mandal
             $uploadCount = $mandalsWithUploads->get($mandal->id)?->upload_count ?? 0;
             $totalUploads += $uploadCount;
+            
+            // Villages in this mandal
+            $totalVillagesInMandal = Village::where('mandal_id', $mandal->id)
+                ->where('is_active', true)
+                ->count();
+            
+            // Villages with uploads in this mandal
+            $uploadedVillagesInMandal = Pahani::where('mandal_id', $mandal->id)
+                ->distinct('village_id')
+                ->count('village_id');
+            
+            // Total document types in system
+            $totalDocumentTypes = PahaniDocument::where('is_active', true)->count();
+            
+            // Documents uploaded for this mandal
+            $documentsUploadedInMandal = Pahani::where('mandal_id', $mandal->id)
+                ->count();
+            
+            // Pending documents (total types - uploaded types for this mandal)
+            $documentTypesUploadedInMandal = Pahani::where('mandal_id', $mandal->id)
+                ->distinct('pahani_document_id')
+                ->count('pahani_document_id');
+            
+            $pendingDocuments = $totalDocumentTypes - $documentTypesUploadedInMandal;
+            
+            // Completion percentage
+            $completionPercentage = $totalDocumentTypes > 0 
+                ? round(($documentTypesUploadedInMandal / $totalDocumentTypes) * 100, 2)
+                : 0;
             
             $mandalSummary[] = [
                 'id' => $mandal->id,
                 'name' => $mandal->name,
                 'assigned' => true,
+                'total_villages' => $totalVillagesInMandal,
+                'uploaded_villages' => $uploadedVillagesInMandal,
+                'total_document_types' => $totalDocumentTypes,
+                'uploaded_documents' => $documentsUploadedInMandal,
+                'pending_documents' => $pendingDocuments,
+                'completion_percentage' => $completionPercentage,
                 'upload_count' => $uploadCount,
             ];
         }
@@ -242,19 +278,49 @@ class ReportsController extends Controller
             return $b['total_uploads'] <=> $a['total_uploads'];
         });
 
-        // Mandal-wise uploads across all users
-        $mandalUploads = Pahani::select('mandal_id', DB::raw('COUNT(*) as upload_count'))
-            ->groupBy('mandal_id')
-            ->with('mandal')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'mandal' => $item->mandal->name,
-                    'uploads' => $item->upload_count,
-                ];
-            })
-            ->sortByDesc('uploads')
-            ->values();
+        // Mandal-wise uploads across all users with enhanced details
+        $allMandals = Mandal::where('is_active', true)->get();
+        $totalDocumentTypes = PahaniDocument::where('is_active', true)->count();
+        
+        $mandalUploads = $allMandals->map(function ($mandal) use ($totalDocumentTypes) {
+            // Total uploads for this mandal
+            $uploadCount = Pahani::where('mandal_id', $mandal->id)->count();
+            
+            // Villages in this mandal
+            $totalVillages = Village::where('mandal_id', $mandal->id)
+                ->where('is_active', true)
+                ->count();
+            
+            // Villages with uploads
+            $uploadedVillages = Pahani::where('mandal_id', $mandal->id)
+                ->distinct('village_id')
+                ->count('village_id');
+            
+            // Document types uploaded
+            $documentTypesUploaded = Pahani::where('mandal_id', $mandal->id)
+                ->distinct('pahani_document_id')
+                ->count('pahani_document_id');
+            
+            $pendingDocuments = $totalDocumentTypes - $documentTypesUploaded;
+            
+            $completionPercentage = $totalDocumentTypes > 0
+                ? round(($documentTypesUploaded / $totalDocumentTypes) * 100, 2)
+                : 0;
+            
+            return [
+                'id' => $mandal->id,
+                'mandal' => $mandal->name,
+                'total_villages' => $totalVillages,
+                'uploaded_villages' => $uploadedVillages,
+                'total_document_types' => $totalDocumentTypes,
+                'uploaded_documents' => $uploadCount,
+                'pending_documents' => $pendingDocuments,
+                'completion_percentage' => $completionPercentage,
+                'uploads' => $uploadCount,
+            ];
+        })
+        ->sortByDesc('uploads')
+        ->values();
 
         // Document-wise uploads across all users
         $documentUploads = Pahani::select('pahani_document_id', DB::raw('COUNT(*) as upload_count'))
