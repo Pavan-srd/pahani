@@ -107,17 +107,12 @@
   <div class="main-body">
 
     <div class="page-heading">
-      <h2>📊 System Upload Summary Report</h2>
+      <h2>📊 Summary Report</h2>
       <div style="font-size:10px;color:#666">Generated: {{ date('d-M-Y H:i') }}</div>
     </div>
 
     {{-- ── SYSTEM STATISTICS ── --}}
     <div class="stats-grid">
-      <div class="stat-card success">
-        <div class="stat-label">📤 Total System Uploads</div>
-        <div class="stat-value">{{ $totalSystemUploads }}</div>
-        <div class="stat-subtitle">Documents uploaded</div>
-      </div>
 
       <div class="stat-card primary">
         <div class="stat-label">📁 Total Mandals</div>
@@ -131,23 +126,6 @@
         <div class="stat-subtitle">Across mandals</div>
       </div>
 
-      <div class="stat-card primary">
-        <div class="stat-label">👥 Active Users</div>
-        <div class="stat-value">{{ $totalActiveUsers }}</div>
-        <div class="stat-subtitle">With permissions</div>
-      </div>
-
-      <div class="stat-card success">
-        <div class="stat-label">📄 Document Types</div>
-        <div class="stat-value">{{ $totalDocumentTypes }}</div>
-        <div class="stat-subtitle">System documents</div>
-      </div>
-
-      <div class="stat-card info" style="border-left-color: #3498db;">
-        <div class="stat-label">📊 Avg Per User</div>
-        <div class="stat-value">{{ $totalActiveUsers > 0 ? round($totalSystemUploads / $totalActiveUsers, 1) : 0 }}</div>
-        <div class="stat-subtitle">Uploads per user</div>
-      </div>
     </div>
 
     {{-- ── CHARTS ── --}}
@@ -170,12 +148,11 @@
                   <th>Mandal</th>
                   <th>Total Villages</th>
                   <th>Villages Uploaded</th>
-                  <th>Villages Pending</th>
-                  <th>Total Documents</th>
-                  <th>Documents Uploaded</th>
-                  <th>Documents Pending</th>
+                  <th>Pending Villages</th>
+                  <th>Total Pahanis</th>
+                  <th>Scanned Pahanis</th>
+                  <th>Pending Pahanis</th>
                   <th>Completion %</th>
-                  <th>% of System</th>
                 </tr>
               </thead>
               <tbody>
@@ -220,14 +197,6 @@
                         <strong style="min-width:40px;font-size:10px">{{ $mandal['completion_percentage'] }}%</strong>
                       </div>
                     </td>
-                    <td>
-                      <div style="display:flex;align-items:center;gap:6px;min-width:80px">
-                        <div class="progress-bar" style="flex:1">
-                          <div class="progress-fill" style="width:{{ $mandal['percentage_of_system'] }}%"></div>
-                        </div>
-                        <strong style="min-width:50px;font-size:10px">{{ $mandal['percentage_of_system'] }}%</strong>
-                      </div>
-                    </td>
                   </tr>
                 @endforeach
               </tbody>
@@ -237,65 +206,6 @@
           <div class="empty-state">
             <div class="es-icon">📭</div>
             <p>No uploads found</p>
-          </div>
-        @endif
-      </div>
-    </div>
-
-        {{-- ── USER WISE SUMMARY TABLE ── --}}
-    <div class="section-card">
-      <div class="section-header">
-        👥 User-wise Upload Summary
-      </div>
-      <div class="section-body">
-        @if(count($userSummaries) > 0)
-          <table class="table">
-            <thead>
-              <tr>
-                <th>User Name</th>
-                <th>Email</th>
-                <th>Assigned Mandals</th>
-                <th>Uploaded Mandals</th>
-                <th>Assigned Villages</th>
-                <th>Uploaded Villages</th>
-                <th>Total Uploads</th>
-                <th>Completion %</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($userSummaries as $user)
-                <tr>
-                  <td><strong>{{ $user['name'] }}</strong></td>
-                  <td><small>{{ $user['email'] }}</small></td>
-                  <td>{{ $user['assigned_mandals'] }}</td>
-                  <td>
-                    <span class="badge badge-info">
-                      {{ $user['uploaded_mandals'] }} / {{ $user['assigned_mandals'] }}
-                    </span>
-                  </td>
-                  <td>{{ $user['assigned_villages'] }}</td>
-                  <td>
-                    <span class="badge badge-success">
-                      {{ $user['uploaded_villages'] }} / {{ $user['assigned_villages'] }}
-                    </span>
-                  </td>
-                  <td><strong>{{ $user['total_uploads'] }}</strong></td>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:6px">
-                      <div class="progress-bar" style="flex:1">
-                        <div class="progress-fill" style="width:{{ $user['completion_percentage'] }}%"></div>
-                      </div>
-                      <strong style="min-width:40px;text-align:right">{{ $user['completion_percentage'] }}%</strong>
-                    </div>
-                  </td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        @else
-          <div class="empty-state">
-            <div class="es-icon">👥</div>
-            <p>No users with permissions found</p>
           </div>
         @endif
       </div>
