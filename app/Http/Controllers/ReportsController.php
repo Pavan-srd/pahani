@@ -68,6 +68,7 @@ class ReportsController extends Controller
 
             // Documents actually uploaded for this mandal
             $documentsUploadedInMandal = Pahani::where('mandal_id', $mandal->id)
+                ->where('physical_document', 'yes')
                 ->count();
 
             $pendingDocuments = $totalDocumentsInMandal - $documentsUploadedInMandal;
@@ -300,7 +301,7 @@ class ReportsController extends Controller
 
             $totalDocuments = $totalVillages * $documentTypesPerVillage;
 
-            $uploadedDocuments = Pahani::where('mandal_id', $mandal->id)->count();
+            $uploadedDocuments = Pahani::where('mandal_id', $mandal->id)->where('physical_document', 'yes')->count();
 
             $completionPercentage = $totalDocuments > 0
                 ? round(($uploadedDocuments / $totalDocuments) * 100, 2)
