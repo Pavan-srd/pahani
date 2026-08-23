@@ -190,6 +190,7 @@
                   <th>Villages Uploaded</th>
                   <th>Total Documents</th>
                   <th>Documents Uploaded</th>
+                  <th>Pending Documents</th>
                   <th>Completion %</th>
                   <th>Status</th>
                 </tr>
@@ -200,20 +201,27 @@
                     <td><strong>{{ $mandal['name'] }}</strong></td>
                     <td>
                       <div style="font-size:10px">
-                        <strong>{{ $mandal['uploaded_villages'] }}/{{ $mandal['total_villages'] }}</strong>
-                        <span style="color:#666"> villages</span>
+                        <strong>{{ $mandal['total_villages'] }}</strong>
                       </div>
                     </td>
                     <td>
                       <div style="font-size:10px">
-                        <strong>{{ $mandal['uploaded_documents'] }}</strong> uploaded
-                        <br><span style="color:#c0392b">{{ $mandal['pending_documents'] }}</span> pending
+                        <strong>{{ $mandal['uploaded_villages'] }}</strong>
                       </div>
                     </td>
                     <td>
                       <div style="font-size:10px">
-                        <strong>{{ $mandal['total_documents'] }}</strong> total
-                        <br><span style="color:#666">{{ $mandal['uploaded_documents'] }} / {{ $mandal['total_documents'] }}</span>
+                        <strong>{{ $mandal['total_documents'] }}</strong> 
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['uploaded_documents'] }}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['pending_documents'] }}</strong>
                       </div>
                     </td>
                     <td>
