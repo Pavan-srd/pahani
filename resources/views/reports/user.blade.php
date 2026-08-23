@@ -174,34 +174,6 @@
       </div>
     </div>
 
-    {{-- ── CHARTS ── --}}
-    <div class="charts-grid">
-      
-      {{-- Mandal Upload Chart --}}
-      <div class="chart-container">
-        <div class="chart-title">📊 Uploads by Mandal</div>
-        <div class="chart-wrapper">
-          <canvas id="mandalChart"></canvas>
-        </div>
-      </div>
-
-      {{-- Document Upload Chart --}}
-      <div class="chart-container">
-        <div class="chart-title">📄 Uploads by Document Type</div>
-        <div class="chart-wrapper">
-          <canvas id="documentChart"></canvas>
-        </div>
-      </div>
-
-      {{-- Village Upload Chart (Top 10) --}}
-      <div class="chart-container" style="grid-column: span 2;">
-        <div class="chart-title">🏘️ Top 10 Villages by Upload Count</div>
-        <div class="chart-wrapper">
-          <canvas id="villageChart"></canvas>
-        </div>
-      </div>
-    </div>
-
     {{-- ── MANDAL WISE DETAILS TABLE ── --}}
     <div class="section-card">
       <div class="section-header">
@@ -213,11 +185,12 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Mandal Name</th>
-                  <th>Villages</th>
-                  <th>Uploads</th>
-                  <th>Documents</th>
-                  <th>Completion</th>
+                  <th>Mandal</th>
+                  <th>Total Villages</th>
+                  <th>Villages Uploaded</th>
+                  <th>Total Documents</th>
+                  <th>Documents Uploaded</th>
+                  <th>Completion %</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -239,8 +212,8 @@
                     </td>
                     <td>
                       <div style="font-size:10px">
-                        <strong>{{ $mandal['total_document_types'] }}</strong> types
-                        <br><span style="color:#666">{{ $mandal['uploaded_documents'] }} / {{ $mandal['total_document_types'] }}</span>
+                        <strong>{{ $mandal['total_documents'] }}</strong> total
+                        <br><span style="color:#666">{{ $mandal['uploaded_documents'] }} / {{ $mandal['total_documents'] }}</span>
                       </div>
                     </td>
                     <td>
@@ -252,12 +225,12 @@
                       </div>
                     </td>
                     <td>
-                      @if($mandal['completion_percentage'] >= 75)
-                        <span class="badge badge-success">✓ Good</span>
-                      @elseif($mandal['completion_percentage'] >= 50)
-                        <span class="badge badge-warning">⚠ Fair</span>
+                      @if($mandal['status'] === 'Completed')
+                        <span class="badge badge-success">✓ {{ $mandal['status'] }}</span>
+                      @elseif($mandal['status'] === 'In Progress')
+                        <span class="badge badge-warning">⚠ {{ $mandal['status'] }}</span>
                       @else
-                        <span class="badge badge-danger">✘ Low</span>
+                        <span class="badge badge-danger">✘ {{ $mandal['status'] }}</span>
                       @endif
                     </td>
                   </tr>
@@ -316,73 +289,6 @@
       </div>
     </div>
 
-    {{-- ── DOCUMENT WISE DETAILS TABLE ── --}}
-    <div class="section-card">
-      <div class="section-header">
-        📄 Document-wise Summary
-      </div>
-      <div class="section-body">
-        @if($documentSummary->count() > 0)
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Document Type</th>
-                <th>Uploaded Count</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($documentSummary as $doc)
-                <tr>
-                  <td><strong>{{ $doc['label'] }}</strong></td>
-                  <td>{{ $doc['uploaded_count'] }} documents</td>
-                  <td>
-                    @if($doc['uploaded_count'] > 0)
-                      <span class="badge badge-success">✓ Uploaded</span>
-                    @else
-                      <span class="badge badge-danger">✘ Pending</span>
-                    @endif
-                  </td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        @else
-          <div class="empty-state">
-            <div class="es-icon">📭</div>
-            <p>No documents uploaded yet</p>
-          </div>
-        @endif
-      </div>
-    </div>
-
-    {{-- ── PENDING DOCUMENTS ── --}}
-    @if(count($pendingDocuments) > 0)
-      <div class="section-card">
-        <div class="section-header">
-          ⚠️ Pending Documents (Not Yet Uploaded)
-        </div>
-        <div class="section-body">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Document Type</th>
-                <th>Value Code</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($pendingDocuments as $doc)
-                <tr>
-                  <td><strong>{{ $doc['label'] }}</strong></td>
-                  <td><code style="background:#f5f5f5;padding:2px 6px;border-radius:2px">{{ $doc['value'] }}</code></td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        </div>
-      </div>
-    @endif
-
     <div style="text-align:center;padding:20px;color:#666;font-size:10px;border-top:1px solid #e0e0e0;margin-top:20px">
       <p>📋 This report was generated on {{ date('d-M-Y H:i A') }}</p>
       <p><button onclick="window.print()" style="background:#154360;color:white;border:none;padding:6px 12px;border-radius:2px;cursor:pointer;font-weight:bold">🖨️ Print Report</button></p>
@@ -391,98 +297,7 @@
   </div>
 
   <script>
-    // ══════════════════════════════════════════════════════════════════
-    // CHART DATA & CONFIGURATIONS
-    // ══════════════════════════════════════════════════════════════════
-
-    // Mandal Chart Data
-    const mandalData = {!! json_encode($mandalChartData) !!};
-    const mandalCtx = document.getElementById('mandalChart').getContext('2d');
-    new Chart(mandalCtx, {
-      type: 'bar',
-      data: {
-        labels: mandalData.map(m => m.name),
-        datasets: [{
-          label: 'Uploads',
-          data: mandalData.map(m => m.uploads),
-          backgroundColor: '#154360',
-          borderColor: '#1a5276',
-          borderWidth: 1,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: Math.max(...mandalData.map(m => m.uploads), 1),
-          }
-        }
-      }
-    });
-
-    // Document Chart Data
-    const documentData = {!! json_encode($documentChartData) !!};
-    const documentCtx = document.getElementById('documentChart').getContext('2d');
-    new Chart(documentCtx, {
-      type: 'doughnut',
-      data: {
-        labels: documentData.map(d => d.label),
-        datasets: [{
-          data: documentData.map(d => d.uploads),
-          backgroundColor: [
-            '#154360', '#1a6fa8', '#f39c12', '#27ae60', '#e74c3c',
-            '#3498db', '#9b59b6', '#1abc9c', '#34495e', '#c0392b'
-          ],
-          borderColor: 'white',
-          borderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'right',
-            labels: { font: { size: 10 }, boxWidth: 8 }
-          }
-        }
-      }
-    });
-
-    // Village Chart Data
-    const villageData = {!! json_encode($villageChartData) !!};
-    const villageCtx = document.getElementById('villageChart').getContext('2d');
-    new Chart(villageCtx, {
-      type: 'horizontalBar',
-      data: {
-        labels: villageData.map(v => v.name),
-        datasets: [{
-          label: 'Documents Uploaded',
-          data: villageData.map(v => v.uploads),
-          backgroundColor: '#27ae60',
-          borderColor: '#1b5e20',
-          borderWidth: 1,
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          x: {
-            beginAtZero: true,
-          }
-        }
-      }
-    });
+    
 
     // ══════════════════════════════════════════════════════════════════
     // UTILITY FUNCTIONS

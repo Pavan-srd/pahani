@@ -153,32 +153,96 @@
     {{-- ── CHARTS ── --}}
     <div class="charts-grid">
       
-      {{-- Top Users Chart --}}
-      <div class="chart-container">
-        <div class="chart-title">👥 Top 15 Users by Upload Count</div>
-        <div class="chart-wrapper">
-          <canvas id="userChart"></canvas>
-        </div>
-      </div>
+    
+    </div>
 
-      {{-- Mandal Chart --}}
-      <div class="chart-container">
-        <div class="chart-title">📁 Uploads by Mandal (Top 10)</div>
-        <div class="chart-wrapper">
-          <canvas id="mandalChart"></canvas>
-        </div>
+    {{-- ── MANDAL WISE SUMMARY TABLE ── --}}
+    <div class="section-card">
+      <div class="section-header">
+        📁 Mandal-wise Upload Summary (Detailed)
       </div>
-
-      {{-- Document Chart --}}
-      <div class="chart-container" style="grid-column: span 2;">
-        <div class="chart-title">📄 Documents Uploaded by Type (Top 15)</div>
-        <div class="chart-wrapper">
-          <canvas id="documentChart"></canvas>
-        </div>
+      <div class="section-body">
+        @if($mandalUploads->count() > 0)
+          <div style="overflow-x:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mandal</th>
+                  <th>Total Villages</th>
+                  <th>Villages Uploaded</th>
+                  <th>Villages Pending</th>
+                  <th>Total Documents</th>
+                  <th>Documents Uploaded</th>
+                  <th>Documents Pending</th>
+                  <th>Completion %</th>
+                  <th>% of System</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($mandalUploads as $mandal)
+                  <tr>
+                    <td><strong>{{ $mandal['mandal'] }}</strong></td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['total_villages'] }}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['uploaded_villages'] }}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['total_villages'] - $mandal['uploaded_villages'] }}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['total_documents'] }}</strong> 
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['uploaded_documents'] }}</strong> 
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
+                        <strong>{{ $mandal['total_documents'] - $mandal['uploaded_documents'] }}</strong> 
+                      </div>
+                    </td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px;min-width:100px">
+                        <div class="progress-bar" style="flex:1">
+                          <div class="progress-fill" style="width:{{ $mandal['completion_percentage'] }}%;background:{{ $mandal['completion_percentage'] >= 75 ? '#27ae60' : ($mandal['completion_percentage'] >= 50 ? '#f39c12' : '#c0392b') }}"></div>
+                        </div>
+                        <strong style="min-width:40px;font-size:10px">{{ $mandal['completion_percentage'] }}%</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px;min-width:80px">
+                        <div class="progress-bar" style="flex:1">
+                          <div class="progress-fill" style="width:{{ $mandal['percentage_of_system'] }}%"></div>
+                        </div>
+                        <strong style="min-width:50px;font-size:10px">{{ $mandal['percentage_of_system'] }}%</strong>
+                      </div>
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @else
+          <div class="empty-state">
+            <div class="es-icon">📭</div>
+            <p>No uploads found</p>
+          </div>
+        @endif
       </div>
     </div>
 
-    {{-- ── USER WISE SUMMARY TABLE ── --}}
+        {{-- ── USER WISE SUMMARY TABLE ── --}}
     <div class="section-card">
       <div class="section-header">
         👥 User-wise Upload Summary
@@ -237,229 +301,12 @@
       </div>
     </div>
 
-    {{-- ── MANDAL WISE SUMMARY TABLE ── --}}
-    <div class="section-card">
-      <div class="section-header">
-        📁 Mandal-wise Upload Summary (Detailed)
-      </div>
-      <div class="section-body">
-        @if($mandalUploads->count() > 0)
-          <div style="overflow-x:auto">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Mandal Name</th>
-                  <th>Villages</th>
-                  <th>Uploads</th>
-                  <th>Documents</th>
-                  <th>Completion</th>
-                  <th>% of System</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach($mandalUploads as $mandal)
-                  <tr>
-                    <td><strong>{{ $mandal['mandal'] }}</strong></td>
-                    <td>
-                      <div style="font-size:10px">
-                        <strong>{{ $mandal['uploaded_villages'] }}/{{ $mandal['total_villages'] }}</strong>
-                        <span style="color:#666"> villages</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style="font-size:10px">
-                        <strong>{{ $mandal['uploaded_documents'] }}</strong> uploaded
-                        <br><span style="color:#c0392b">{{ $mandal['pending_documents'] }}</span> pending
-                      </div>
-                    </td>
-                    <td>
-                      <div style="font-size:10px">
-                        <strong>{{ $mandal['total_document_types'] }}</strong> types
-                        <br><span style="color:#666">{{ $mandal['uploaded_documents'] }} / {{ $mandal['total_document_types'] }}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style="display:flex;align-items:center;gap:6px;min-width:100px">
-                        <div class="progress-bar" style="flex:1">
-                          <div class="progress-fill" style="width:{{ $mandal['completion_percentage'] }}%;background:{{ $mandal['completion_percentage'] >= 75 ? '#27ae60' : ($mandal['completion_percentage'] >= 50 ? '#f39c12' : '#c0392b') }}"></div>
-                        </div>
-                        <strong style="min-width:40px;font-size:10px">{{ $mandal['completion_percentage'] }}%</strong>
-                      </div>
-                    </td>
-                    <td>
-                      <div style="display:flex;align-items:center;gap:6px;min-width:80px">
-                        <div class="progress-bar" style="flex:1">
-                          <div class="progress-fill" style="width:{{ $totalSystemUploads > 0 ? ($mandal['uploads'] / $totalSystemUploads) * 100 : 0 }}%"></div>
-                        </div>
-                        <strong style="min-width:50px;font-size:10px">{{ $totalSystemUploads > 0 ? round(($mandal['uploads'] / $totalSystemUploads) * 100, 1) : 0 }}%</strong>
-                      </div>
-                    </td>
-                  </tr>
-                @endforeach
-              </tbody>
-            </table>
-          </div>
-        @else
-          <div class="empty-state">
-            <div class="es-icon">📭</div>
-            <p>No uploads found</p>
-          </div>
-        @endif
-      </div>
-    </div>
-
-    {{-- ── DOCUMENT WISE SUMMARY TABLE ── --}}
-    <div class="section-card">
-      <div class="section-header">
-        📄 Document-wise Upload Summary (Top 20)
-      </div>
-      <div class="section-body">
-        @if($documentUploads->count() > 0)
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Document Type</th>
-                <th>Total Uploaded</th>
-                <th>% of System Total</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @foreach($documentUploads->take(20) as $doc)
-                <tr>
-                  <td><strong>{{ $doc['document'] }}</strong></td>
-                  <td>{{ $doc['uploads'] }} documents</td>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:6px">
-                      <div class="progress-bar" style="flex:1;min-width:80px">
-                        <div class="progress-fill" style="width:{{ $totalSystemUploads > 0 ? ($doc['uploads'] / $totalSystemUploads) * 100 : 0 }}%"></div>
-                      </div>
-                      <strong>{{ $totalSystemUploads > 0 ? round(($doc['uploads'] / $totalSystemUploads) * 100, 1) : 0 }}%</strong>
-                    </div>
-                  </td>
-                  <td>
-                    @if($doc['uploads'] > 100)
-                      <span class="badge badge-success">✓ High</span>
-                    @elseif($doc['uploads'] > 50)
-                      <span class="badge badge-info">◐ Medium</span>
-                    @else
-                      <span class="badge badge-warning">⚠ Low</span>
-                    @endif
-                  </td>
-                </tr>
-              @endforeach
-            </tbody>
-          </table>
-        @else
-          <div class="empty-state">
-            <div class="es-icon">📭</div>
-            <p>No documents uploaded yet</p>
-          </div>
-        @endif
-      </div>
-    </div>
-
     <div style="text-align:center;padding:20px;color:#666;font-size:10px;border-top:1px solid #e0e0e0;margin-top:20px">
       <p>📋 This report was generated on {{ date('d-M-Y H:i A') }}</p>
       <p><button onclick="window.print()" style="background:#154360;color:white;border:none;padding:6px 12px;border-radius:2px;cursor:pointer;font-weight:bold">🖨️ Print Report</button></p>
     </div>
 
   </div>
-
-  <script>
-    // ══════════════════════════════════════════════════════════════════
-    // CHART DATA & CONFIGURATIONS
-    // ══════════════════════════════════════════════════════════════════
-
-    // User Chart Data
-    const userData = {!! json_encode($userChartData) !!};
-    const userCtx = document.getElementById('userChart').getContext('2d');
-    new Chart(userCtx, {
-      type: 'bar',
-      data: {
-        labels: userData.map(u => u.name),
-        datasets: [{
-          label: 'Uploads',
-          data: userData.map(u => u.uploads),
-          backgroundColor: '#154360',
-          borderColor: '#1a5276',
-          borderWidth: 1,
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          x: {
-            beginAtZero: true,
-          }
-        }
-      }
-    });
-
-    // Mandal Chart Data
-    const mandalData = {!! json_encode($mandalChartData) !!};
-    const mandalCtx = document.getElementById('mandalChart').getContext('2d');
-    new Chart(mandalCtx, {
-      type: 'doughnut',
-      data: {
-        labels: mandalData.map(m => m.name),
-        datasets: [{
-          data: mandalData.map(m => m.uploads),
-          backgroundColor: [
-            '#154360', '#1a6fa8', '#f39c12', '#27ae60', '#e74c3c',
-            '#3498db', '#9b59b6', '#1abc9c', '#34495e', '#2980b9'
-          ],
-          borderColor: 'white',
-          borderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { font: { size: 9 }, boxWidth: 8 }
-          }
-        }
-      }
-    });
-
-    // Document Chart Data
-    const documentData = {!! json_encode($documentChartData) !!};
-    const documentCtx = document.getElementById('documentChart').getContext('2d');
-    new Chart(documentCtx, {
-      type: 'bar',
-      data: {
-        labels: documentData.map(d => d.label),
-        datasets: [{
-          label: 'Uploads',
-          data: documentData.map(d => d.uploads),
-          backgroundColor: '#27ae60',
-          borderColor: '#1b5e20',
-          borderWidth: 1,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'x',
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-          }
-        }
-      }
-    });
-  </script>
 
 </body>
 </html>
