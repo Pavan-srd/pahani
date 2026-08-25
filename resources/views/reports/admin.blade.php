@@ -211,6 +211,45 @@
       </div>
     </div>
 
+    {{-- ── OVERALL TOTALS ── --}}
+    <div class="section-card">
+      <div class="section-header">
+        🧮 Overall Totals
+      </div>
+      <div class="section-body">
+        <div class="stats-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">📁 Total Mandals</div>
+            <div class="stat-value">{{ $totalActiveMandals }}</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">🏘️ Total Villages</div>
+            <div class="stat-value">{{ $totalActiveVillages }}</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">✅ Villages Uploaded</div>
+            <div class="stat-value">{{ $mandalUploads->sum('uploaded_villages') }}</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">⏳ Pending Villages</div>
+            <div class="stat-value">{{ $mandalUploads->sum('total_villages') - $mandalUploads->sum('uploaded_villages') }}</div>
+          </div>
+          <div class="stat-card primary">
+            <div class="stat-label">📄 Total Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('total_documents') }}</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">🖨️ Scanned Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('uploaded_documents') }}</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">⏳ Pending Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('total_documents') - $mandalUploads->sum('uploaded_documents') }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div style="text-align:center;padding:20px;color:#666;font-size:10px;border-top:1px solid #e0e0e0;margin-top:20px">
       <p>📋 This report was generated on {{ date('d-M-Y H:i A') }}</p>
       <p><button onclick="window.print()" style="background:#154360;color:white;border:none;padding:6px 12px;border-radius:2px;cursor:pointer;font-weight:bold">🖨️ Print Report</button></p>
