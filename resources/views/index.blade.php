@@ -518,6 +518,67 @@
           }
       });
   }
+
+  const PART_SIZE = 10 * 1024 * 1024;       // 10MB per part
+  const MULTIPART_THRESHOLD = 20 * 1024 * 1024; // below this, keep your existing single-PUT flow
+  const MAX_CONCURRENT_PARTS = 4;
+
+  async function uploadFileMultipart(mandal, village, docValue, file, onProgress) {
+    const initRes = await fetch('{{ route("pahani.multipart.init") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+      body: JSON.stringify({ mandal, village, docValue, fileExt: getFileExt(file) }),
+    });
+    const { key, uploadId } = await initRes.json();
+
+    const totalParts = Math.ceil(file.size / PART_SIZE);
+    const progressByPart = new Array(totalParts).fill(0);
+    const completedParts = [];
+
+    const uploadPart = async (partNumber) => {
+      const start = (partNumber - 1) * PART_SIZE;
+      const blob = file.slice(start, Math.min(start + PART_SIZE, file.size));
+
+      const signRes = await fetch('{{ route("pahani.multipart.sign-part") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+        body: JSON.stringify({ key, uploadId, partNumber }),
+      });
+      const { url } = await signRes.json();
+
+      const etag = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', url);
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          progressByPart[partNumber - 1] = e.loaded / e.total;
+          const overall = progressByPart.reduce((a, b) => a + b, 0) / totalParts * 100;
+          onProgress(Math.round(overall));
+        };
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+          ? resolve(xhr.getResponseHeader('ETag'))
+          : reject(new Error(`Part ${partNumber} failed (${xhr.status})`));
+        xhr.onerror = () => reject(new Error(`Network error on part ${partNumber}`));
+        xhr.send(blob);
+      });
+
+      completedParts.push({ PartNumber: partNumber, ETag: etag });
+    };
+
+    let cursor = 1;
+    const worker = async () => { while (cursor <= totalParts) await uploadPart(cursor++); };
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_PARTS, totalParts) }, worker));
+
+    completedParts.sort((a, b) => a.PartNumber - b.PartNumber);
+
+    await fetch('{{ route("pahani.multipart.complete") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+      body: JSON.stringify({ key, uploadId, parts: completedParts }),
+    });
+
+    return key;
+  }
 /* ══════════════════════════════════════════════════════════════════
    MASTER DATA from DB (passed by controller)
 ══════════════════════════════════════════════════════════════════ */
@@ -1098,9 +1159,17 @@ async function submitForm() {
       .filter(row => state.files[row.id])
       .map(async row => {
         const file = state.files[row.id];
-        const { key, url, headers } = await getPresignedUrl(mandal, village, row.value, file);
-        await uploadFileWithProgress(url, file, headers, pct => updateRowProgress(row.id, pct));
-        row.r2Key   = key;
+
+        let key;
+        if (file.size > MULTIPART_THRESHOLD) {
+          key = await uploadFileMultipart(mandal, village, row.value, file, pct => updateRowProgress(row.id, pct));
+        } else {
+          const presigned = await getPresignedUrl(mandal, village, row.value, file);
+          await uploadFileWithProgress(presigned.url, file, presigned.headers, pct => updateRowProgress(row.id, pct));
+          key = presigned.key;
+        }
+
+        row.r2Key    = key;
         row.fileSize = file.size;
         row.fileMime = file.type || (getFileExt(file) === 'pdf' ? 'application/pdf' : 'image/tiff');
         updateRowProgress(row.id, 100);

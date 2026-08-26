@@ -29,6 +29,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/pahani/presign', [PahaniController::class, 'presign'])->name('pahani.presign');
     Route::post('/pahani/store',   [PahaniController::class, 'store'])->name('pahani.store');
 
+    Route::post('/pahani/multipart-init', [PahaniController::class, 'multipartInit'])->name('pahani.multipart.init');
+    Route::post('/pahani/multipart-sign-part', [PahaniController::class, 'multipartSignPart'])->name('pahani.multipart.sign-part');
+    Route::post('/pahani/multipart-complete', [PahaniController::class, 'multipartComplete'])->name('pahani.multipart.complete');
+    Route::post('/pahani/multipart-abort', [PahaniController::class, 'multipartAbort'])->name('pahani.multipart.abort');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

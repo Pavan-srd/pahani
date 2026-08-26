@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Aws\S3\S3Client;
 
 class PahaniController extends Controller
 {
@@ -742,6 +743,93 @@ class PahaniController extends Controller
         $bytes /= (1 << (10 * $pow));
 
         return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+    private function r2Client(): S3Client
+    {
+        $c = config('filesystems.disks.r2');
+        return new S3Client([
+            'version'     => 'latest',
+            'region'      => $c['region'] ?? 'auto',
+            'endpoint'    => $c['endpoint'],
+            'credentials' => ['key' => $c['key'], 'secret' => $c['secret']],
+        ]);
+    }
+
+    public function multipartInit(Request $request)
+    {
+        $request->validate([
+            'mandal' => ['required','string','exists:mandals,slug'],
+            'village' => ['required','string'],
+            'docValue' => ['required','string','exists:pahani_documents,value'],
+            'fileExt' => ['required','string','in:pdf,tif,tiff'],
+        ]);
+
+        $mandal = Mandal::where('slug', $request->mandal)->where('is_active', true)->firstOrFail();
+        $village = Village::where('mandal_id', $mandal->id)->where('slug', $request->village)->where('is_active', true)->firstOrFail();
+
+        $ext = strtolower($request->fileExt);
+        $key = implode('/', ['pahani', $mandal->slug, $village->slug, $request->docValue, Str::uuid().'.'.$ext]);
+
+        $result = $this->r2Client()->createMultipartUpload([
+            'Bucket'      => config('filesystems.disks.r2.bucket'),
+            'Key'         => $key,
+            'ContentType' => $ext === 'pdf' ? 'application/pdf' : 'image/tiff',
+        ]);
+
+        return response()->json(['success' => true, 'key' => $key, 'uploadId' => $result['UploadId']]);
+    }
+
+    public function multipartSignPart(Request $request)
+    {
+        $request->validate([
+            'key' => ['required','string'],
+            'uploadId' => ['required','string'],
+            'partNumber' => ['required','integer','min:1','max:10000'],
+        ]);
+
+        $cmd = $this->r2Client()->getCommand('UploadPart', [
+            'Bucket'     => config('filesystems.disks.r2.bucket'),
+            'Key'        => $request->key,
+            'UploadId'   => $request->uploadId,
+            'PartNumber' => (int) $request->partNumber,
+        ]);
+
+        $url = (string) $this->r2Client()->createPresignedRequest($cmd, '+20 minutes')->getUri();
+
+        return response()->json(['success' => true, 'url' => $url]);
+    }
+
+    public function multipartComplete(Request $request)
+    {
+        $request->validate([
+            'key' => ['required','string'],
+            'uploadId' => ['required','string'],
+            'parts' => ['required','array','min:1'],
+            'parts.*.PartNumber' => ['required','integer'],
+            'parts.*.ETag' => ['required','string'],
+        ]);
+
+        $this->r2Client()->completeMultipartUpload([
+            'Bucket'          => config('filesystems.disks.r2.bucket'),
+            'Key'             => $request->key,
+            'UploadId'        => $request->uploadId,
+            'MultipartUpload' => ['Parts' => $request->parts],
+        ]);
+
+        return response()->json(['success' => true, 'key' => $request->key]);
+    }
+
+    // call this on abandon/error so R2 doesn't keep billing incomplete parts
+    public function multipartAbort(Request $request)
+    {
+        $request->validate(['key' => ['required','string'], 'uploadId' => ['required','string']]);
+        $this->r2Client()->abortMultipartUpload([
+            'Bucket' => config('filesystems.disks.r2.bucket'),
+            'Key' => $request->key,
+            'UploadId' => $request->uploadId,
+        ]);
+        return response()->json(['success' => true]);
     }
 
 }
