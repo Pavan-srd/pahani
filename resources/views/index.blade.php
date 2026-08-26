@@ -523,6 +523,10 @@
   const MULTIPART_THRESHOLD = 20 * 1024 * 1024; // below this, keep your existing single-PUT flow
   const MAX_CONCURRENT_PARTS = 4;
 
+  function csrfToken() {
+    return document.querySelector('meta[name=csrf-token]').content;
+  }
+  
   async function uploadFileMultipart(mandal, village, docValue, file, onProgress) {
     const initRes = await fetch('{{ route("pahani.multipart.init") }}', {
       method: 'POST',
