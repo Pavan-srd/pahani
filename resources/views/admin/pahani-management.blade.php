@@ -158,7 +158,7 @@
         </div>
         <div class="filter-group">
           <label>Mandal</label>
-          <select name="mandal_id" style="min-width:140px">
+          <select name="mandal_id" id="mandal_id" style="min-width:140px">
             <option value="">All Mandals</option>
             @foreach($mandals as $mandal)
               <option value="{{ $mandal->id }}" {{ request('mandal_id') == $mandal->id ? 'selected' : '' }}>
@@ -168,11 +168,15 @@
           </select>
         </div>
         <div class="filter-group">
-          <label>Sort By</label>
-          <select name="sort_by" style="min-width:130px">
-            <option value="created_at" {{ request('sort_by') == 'created_at' ? 'selected' : '' }}>Newest First</option>
-            <option value="document_name" {{ request('sort_by') == 'document_name' ? 'selected' : '' }}>Document Name</option>
-            <option value="file_size_bytes" {{ request('sort_by') == 'file_size_bytes' ? 'selected' : '' }}>File Size</option>
+          <label>Village</label>
+          <select name="village_id" id="village_id" style="min-width:150px">
+            <option value="">All Villages</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Document</label>
+          <select name="pahani_document_id" id="pahani_document_id" style="min-width:160px">
+            <option value="">All Documents</option>
           </select>
         </div>
         <button type="submit" class="btn btn-primary">Search</button>
@@ -235,12 +239,37 @@
             <a href="{{ $pahanis->previousPageUrl() }}" rel="prev">← Previous</a>
           @endif
 
-          {{-- Pagination Elements --}}
-          @foreach($pahanis->getUrlRange(1, $pahanis->lastPage()) as $page => $url)
-            @if($page == $pahanis->currentPage())
+          {{-- Pagination Elements (windowed: 1 ... current-2..current+2 ... last) --}}
+          @php
+            $current = $pahanis->currentPage();
+            $last = $pahanis->lastPage();
+            $onEachSide = 2;
+
+            $pages = [1];
+            $rangeStart = max(2, $current - $onEachSide);
+            $rangeEnd = min($last - 1, $current + $onEachSide);
+
+            if ($rangeStart > 2) {
+                $pages[] = '...';
+            }
+            for ($p = $rangeStart; $p <= $rangeEnd; $p++) {
+                $pages[] = $p;
+            }
+            if ($rangeEnd < $last - 1) {
+                $pages[] = '...';
+            }
+            if ($last > 1) {
+                $pages[] = $last;
+            }
+          @endphp
+
+          @foreach($pages as $index => $page)
+            @if($page === '...')
+              <span class="disabled" aria-hidden="true">…</span>
+            @elseif($page == $current)
               <span class="active" aria-current="page">{{ $page }}</span>
             @else
-              <a href="{{ $url }}">{{ $page }}</a>
+              <a href="{{ $pahanis->url($page) }}">{{ $page }}</a>
             @endif
           @endforeach
 
@@ -283,6 +312,58 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // ── CASCADING FILTER DROPDOWNS (Mandal -> Village -> Document) ──
+    const villagesData = @json($villages->map(fn($v) => ['id' => $v->id, 'name' => $v->name, 'mandal_id' => $v->mandal_id]));
+    const documentsData = @json($documents->map(fn($d) => ['id' => $d->id, 'name' => $d->label]));
+
+    const selectedMandalId = '{{ request('mandal_id') }}';
+    const selectedVillageId = '{{ request('village_id') }}';
+    const selectedDocumentId = '{{ request('pahani_document_id') }}';
+
+    const mandalSelect = document.getElementById('mandal_id');
+    const villageSelect = document.getElementById('village_id');
+    const documentSelect = document.getElementById('pahani_document_id');
+
+    function populateVillages(mandalId, keepSelectedId) {
+      villageSelect.innerHTML = '<option value="">All Villages</option>';
+      const filtered = mandalId
+        ? villagesData.filter(v => String(v.mandal_id) === String(mandalId))
+        : villagesData;
+      filtered.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = v.name;
+        if (keepSelectedId && String(v.id) === String(keepSelectedId)) opt.selected = true;
+        villageSelect.appendChild(opt);
+      });
+    }
+
+    function populateDocuments(keepSelectedId) {
+      documentSelect.innerHTML = '<option value="">All Documents</option>';
+      documentsData.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        if (keepSelectedId && String(d.id) === String(keepSelectedId)) opt.selected = true;
+        documentSelect.appendChild(opt);
+      });
+    }
+
+    // Initial population, preserving any selection from the current query string
+    populateVillages(selectedMandalId, selectedVillageId);
+    populateDocuments(selectedDocumentId);
+
+    // Mandal changed -> reload villages for that mandal, reset village & document choice
+    mandalSelect.addEventListener('change', function () {
+      populateVillages(this.value, null);
+      documentSelect.value = '';
+    });
+
+    // Village changed -> (re)populate the document list
+    villageSelect.addEventListener('change', function () {
+      populateDocuments(null);
+    });
+
     let pendingDeleteId = null;
 
     function deletePahani(id) {

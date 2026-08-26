@@ -172,6 +172,20 @@ document.querySelector('form')?.addEventListener('submit', function() {
   btn.classList.add('loading');
   btn.disabled = true;
 });
+document.querySelectorAll('form').forEach(function (form) {
+  form.addEventListener('submit', function () {
+    const btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+    if (btn.dataset.submitted === '1') {
+      // Guard in case submit fires again somehow
+      return;
+    }
+    btn.dataset.submitted = '1';
+    btn.dataset.originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Please wait...';
+  });
+});
 </script>
 
 </body>

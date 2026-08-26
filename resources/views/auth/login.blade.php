@@ -149,6 +149,22 @@ function togglePassword(id, btn) {
   input.type = isPw ? 'text' : 'password';
   btn.textContent = isPw ? '🙈' : '👁️';
 }
+
+// Disable submit button on form submit to prevent double-submits (e.g. duplicate OTP emails)
+document.querySelectorAll('form').forEach(function (form) {
+  form.addEventListener('submit', function () {
+    const btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+    if (btn.dataset.submitted === '1') {
+      // Guard in case submit fires again somehow
+      return;
+    }
+    btn.dataset.submitted = '1';
+    btn.dataset.originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Please wait...';
+  });
+});
 </script>
 
 </body>

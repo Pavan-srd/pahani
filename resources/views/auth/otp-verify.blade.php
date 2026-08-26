@@ -197,6 +197,22 @@ document.getElementById('otp')?.addEventListener('input', function(e) {
     // this.form.submit();
   }
 });
+
+// Disable submit button on form submit to prevent double-submits
+// (covers both the "Verify OTP" form and the "Resend OTP" form)
+document.querySelectorAll('form').forEach(function (form) {
+  form.addEventListener('submit', function () {
+    const btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+    if (btn.dataset.submitted === '1') {
+      return;
+    }
+    btn.dataset.submitted = '1';
+    btn.dataset.originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = btn.classList.contains('btn-secondary') ? 'Resending...' : 'Verifying...';
+  });
+});
 </script>
 
 </body>

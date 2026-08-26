@@ -21,39 +21,34 @@ class PahaniManagementController extends Controller
             ->whereNotNull('file_path')
             ->whereNull('deleted_at');
 
-        // Search by user name
         if ($request->filled('search_user')) {
             $query->whereHas('user', function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search_user . '%');
             });
         }
 
-        // Filter by mandal
         if ($request->filled('mandal_id')) {
             $query->where('mandal_id', $request->mandal_id);
         }
 
-        // Filter by village
         if ($request->filled('village_id')) {
             $query->where('village_id', $request->village_id);
         }
 
-        // Sort options
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
-
-        if (in_array($sortBy, ['created_at', 'document_name', 'file_size_bytes'])) {
-            $query->orderBy($sortBy, in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'desc');
+        // NEW: filter by selected document
+        if ($request->filled('pahani_document_id')) {
+            $query->where('pahani_document_id', $request->pahani_document_id);
         }
 
-        // Paginate
-        $pahanis = $query->paginate(25);
+        $pahanis = $query->orderBy('created_at', 'desc')->paginate(25);
 
-        // Get filter options
         $mandals = \App\Models\Mandal::where('is_active', true)->orderBy('name')->get();
-        $villages = \App\Models\Village::where('is_active', true)->orderBy('name')->get();
+        // village must carry mandal_id so the JS can filter it client-side
+        $villages = \App\Models\Village::where('is_active', true)->orderBy('name')->get(['id', 'name', 'mandal_id']);
+        // NEW: full master list of the 68 document types (same set for every village)
+        $documents = \App\Models\PahaniDocument::orderBy('label')->get(['id', 'label']);
 
-        return view('admin.pahani-management', compact('pahanis', 'mandals', 'villages'));
+        return view('admin.pahani-management', compact('pahanis', 'mandals', 'villages', 'documents'));
     }
 
     /**
