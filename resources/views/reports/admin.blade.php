@@ -110,22 +110,48 @@
       <h2>📊 Summary Report</h2>
       <div style="font-size:10px;color:#666">Generated: {{ date('d-M-Y H:i') }}</div>
     </div>
-
-    {{-- ── SYSTEM STATISTICS ── --}}
-    <div class="stats-grid">
-
-      <div class="stat-card primary">
-        <div class="stat-label">📁 Total Mandals</div>
-        <div class="stat-value">{{ $totalActiveMandals }}</div>
-        <div class="stat-subtitle">In system</div>
+    
+    {{-- ── OVERALL TOTALS ── --}}
+    <div class="section-card">
+      <div class="section-header">
+        🧮 Overall Totals
       </div>
-
-      <div class="stat-card warning">
-        <div class="stat-label">🏘️ Total Villages</div>
-        <div class="stat-value">{{ $totalActiveVillages }}</div>
-        <div class="stat-subtitle">Across mandals</div>
+      <div class="section-body">
+        <div class="stats-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">📁 Total Mandals</div>
+            <div class="stat-value">{{ $totalActiveMandals }}</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">🏘️ Total Villages</div>
+            <div class="stat-value">{{ $totalActiveVillages }}</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">✅ Villages Uploaded</div>
+            <div class="stat-value">{{ $mandalUploads->sum('uploaded_villages') }}</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">⏳ Pending Villages</div>
+            <div class="stat-value">{{ $mandalUploads->sum('total_villages') - $mandalUploads->sum('uploaded_villages') }}</div>
+          </div>
+          <div class="stat-card primary">
+            <div class="stat-label">📄 Total Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('total_documents') }}</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">🖨️ Scanned Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('uploaded_documents') }}</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">📄 UnAvailable Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('unavailable_documents') }}</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">⏳ Pending Pahanis</div>
+            <div class="stat-value">{{ $mandalUploads->sum('total_documents') - $mandalUploads->sum('uploaded_documents') }}</div>
+          </div>
+        </div>
       </div>
-
     </div>
 
     {{-- ── CHARTS ── --}}
@@ -151,6 +177,7 @@
                   <th>Pending Villages</th>
                   <th>Total Pahanis</th>
                   <th>Scanned Pahanis</th>
+                  <th>UnAvailable Pahanis</th>
                   <th>Pending Pahanis</th>
                   <th>Completion %</th>
                 </tr>
@@ -186,6 +213,11 @@
                     </td>
                     <td>
                       <div style="font-size:10px">
+                        <strong>{{ $mandal['unavailable_documents'] }}</strong> 
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-size:10px">
                         <strong>{{ $mandal['total_documents'] - $mandal['uploaded_documents'] }}</strong> 
                       </div>
                     </td>
@@ -208,45 +240,6 @@
             <p>No uploads found</p>
           </div>
         @endif
-      </div>
-    </div>
-
-    {{-- ── OVERALL TOTALS ── --}}
-    <div class="section-card">
-      <div class="section-header">
-        🧮 Overall Totals
-      </div>
-      <div class="section-body">
-        <div class="stats-grid">
-          <div class="stat-card primary">
-            <div class="stat-label">📁 Total Mandals</div>
-            <div class="stat-value">{{ $totalActiveMandals }}</div>
-          </div>
-          <div class="stat-card warning">
-            <div class="stat-label">🏘️ Total Villages</div>
-            <div class="stat-value">{{ $totalActiveVillages }}</div>
-          </div>
-          <div class="stat-card success">
-            <div class="stat-label">✅ Villages Uploaded</div>
-            <div class="stat-value">{{ $mandalUploads->sum('uploaded_villages') }}</div>
-          </div>
-          <div class="stat-card warning">
-            <div class="stat-label">⏳ Pending Villages</div>
-            <div class="stat-value">{{ $mandalUploads->sum('total_villages') - $mandalUploads->sum('uploaded_villages') }}</div>
-          </div>
-          <div class="stat-card primary">
-            <div class="stat-label">📄 Total Pahanis</div>
-            <div class="stat-value">{{ $mandalUploads->sum('total_documents') }}</div>
-          </div>
-          <div class="stat-card success">
-            <div class="stat-label">🖨️ Scanned Pahanis</div>
-            <div class="stat-value">{{ $mandalUploads->sum('uploaded_documents') }}</div>
-          </div>
-          <div class="stat-card warning">
-            <div class="stat-label">⏳ Pending Pahanis</div>
-            <div class="stat-value">{{ $mandalUploads->sum('total_documents') - $mandalUploads->sum('uploaded_documents') }}</div>
-          </div>
-        </div>
       </div>
     </div>
 

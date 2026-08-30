@@ -303,6 +303,8 @@ class ReportsController extends Controller
 
             $uploadedDocuments = Pahani::where('mandal_id', $mandal->id)->where('physical_document', 'yes')->count();
 
+            $unAvailableDocuments = Pahani::where('mandal_id', $mandal->id)->where('physical_document', 'no')->count();
+
             $completionPercentage = $totalDocuments > 0
                 ? round(($uploadedDocuments / $totalDocuments) * 100, 2)
                 : 0;
@@ -314,6 +316,7 @@ class ReportsController extends Controller
                 'uploaded_villages' => $uploadedVillages,
                 'total_documents' => $totalDocuments,
                 'uploaded_documents' => $uploadedDocuments,
+                'unavailable_documents' => $unAvailableDocuments,
                 'completion_percentage' => $completionPercentage,
                 'uploads' => $uploadedDocuments, // kept so existing sort/chart code still works
             ];
