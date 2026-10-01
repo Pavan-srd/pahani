@@ -164,6 +164,9 @@
         <a class="sb-item" href="{{ route('admin.working-offices.index') }}">
           <span class="sb-icon">🏢</span> Working Office
         </a>
+        <a class="sb-item" href="{{ route('admin.modules.index') }}">
+          <span class="sb-icon">🧩</span> Modules
+        </a>
 
         <div class="nav-section-label">Access Control</div>
         <a class="sb-item" href="{{ route('admin.pahani-management.index') }}">

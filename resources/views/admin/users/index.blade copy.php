@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Village Management — Admin Dashboard</title>
+  <title>Users Management — Admin Dashboard</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;background:#f0f4f8;color:#1a1a2e}
@@ -70,8 +70,6 @@
     .toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
     .search-box{display:flex;align-items:center;gap:6px;background:white;border:1px solid #b0c4d8;border-radius:2px;padding:6px 10px;min-width:220px}
     .search-box input{border:none;outline:none;font-size:11px;flex:1;background:transparent}
-    .btn-primary-sm{background:#154360;color:white;border:none;padding:8px 16px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:2px;display:inline-flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:0.3px;transition:background 0.15s}
-    .btn-primary-sm:hover{background:#1a6fa8}
 
     .section-card{background:white;border:1px solid #d0dde8;border-radius:2px;overflow:hidden}
     .data-table{width:100%;border-collapse:collapse;font-size:11px}
@@ -87,8 +85,6 @@
     .row-actions{display:flex;gap:6px}
     .btn-icon{border:none;background:#eaf2f8;color:#154360;cursor:pointer;width:26px;height:26px;border-radius:3px;font-size:11px;display:flex;align-items:center;justify-content:center;transition:background 0.15s}
     .btn-icon:hover{background:#d6eaf8}
-    .btn-icon.danger{background:#fdecea;color:#c0392b}
-    .btn-icon.danger:hover{background:#f8d0cb}
 
     .empty-state{text-align:center;padding:36px 10px;color:#888;font-size:11px}
     .es-icon{font-size:32px;margin-bottom:8px}
@@ -112,9 +108,9 @@
     @keyframes slideIn{from{transform:translateX(120%)}}
 
     /* ══ MODAL ══ */
-    .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:16px}
+    .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
     .modal-overlay.show{display:flex}
-    .modal-box{background:white;border-radius:4px;box-shadow:0 6px 24px rgba(0,0,0,0.18);width:100%;max-width:420px;overflow:hidden;animation:modalSlide 0.25s ease}
+    .modal-box{background:white;border-radius:4px;box-shadow:0 6px 24px rgba(0,0,0,0.18);width:100%;max-width:520px;overflow:hidden;animation:modalSlide 0.25s ease;margin:auto}
     @keyframes modalSlide{from{transform:translateY(-30px);opacity:0}}
 
     .modal-header{background:#eaf2f8;border-bottom:1px solid #b8d4e8;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
@@ -122,7 +118,7 @@
     .modal-close{background:none;border:none;font-size:16px;color:#999;cursor:pointer;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
     .modal-close:hover{color:#154360}
 
-    .modal-body{padding:16px}
+    .modal-body{padding:16px;max-height:600px;overflow-y:auto}
     .modal-footer{padding:12px 16px;border-top:1px solid #dce8f0;background:#fafbfc;display:flex;gap:8px;justify-content:flex-end}
 
     .form-field{margin-bottom:14px;display:flex;flex-direction:column;gap:4px}
@@ -133,8 +129,20 @@
     .field-error{color:#c0392b;font-size:10px;display:none}
     .form-field.has-error .field-error{display:block}
 
+    .form-field-sub{font-size:9px;color:#888;margin-top:-2px;font-weight:normal}
+
+    .checkbox-group{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;padding:8px;background:#f9fbfc;border:1px solid #d5e8f5;border-radius:3px}
+    .checkbox-item{display:flex;align-items:center;gap:8px;padding:6px;background:white;border:1px solid #e0e8f0;border-radius:2px}
+    .checkbox-item input{width:16px;height:16px;cursor:pointer;flex-shrink:0}
+    .checkbox-item label{margin:0;font-weight:normal;font-size:11px;cursor:pointer}
+
+    .section-divider{border-top:1px solid #d5e8f5;margin:12px 0;padding-top:12px}
+
     .btn-secondary-sm{background:#f0f4f8;color:#154360;border:1px solid #b0c4d8;padding:8px 16px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:2px;transition:background 0.15s}
     .btn-secondary-sm:hover{background:#eaf2f8}
+
+    .btn-primary-sm{background:#154360;color:white;border:none;padding:8px 16px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:2px;transition:background 0.15s}
+    .btn-primary-sm:hover{background:#1a6fa8}
   </style>
 </head>
 <body>
@@ -156,14 +164,11 @@
         <a class="sb-item" href="{{ route('admin.mandals.index') }}">
           <span class="sb-icon">🏛️</span> Mandal
         </a>
-        <a class="sb-item active" href="{{ route('admin.villages.index') }}">
+        <a class="sb-item" href="{{ route('admin.villages.index') }}">
           <span class="sb-icon">🏘️</span> Village
         </a>
         <a class="sb-item" href="{{ route('admin.working-offices.index') }}">
           <span class="sb-icon">🏢</span> Working Office
-        </a>
-        <a class="sb-item" href="{{ route('admin.modules.index') }}">
-          <span class="sb-icon">🧩</span> Modules
         </a>
 
         <div class="nav-section-label">Access Control</div>
@@ -173,7 +178,7 @@
         <a class="sb-item" href="{{ route('reports.admin') }}">
           <span class="sb-icon">👤</span> Summary 
         </a>
-        <a class="sb-item" href="{{ route('admin.users.index') }}">
+        <a class="sb-item active" href="{{ route('admin.users.index') }}">
           <span class="sb-icon">👤</span> Users List
         </a>
       </nav>
@@ -191,8 +196,8 @@
         <div class="topbar-left">
           <button class="hamburger" onclick="openSidebar()">☰</button>
           <div>
-            <div class="topbar-title">🏘️ Village Management</div>
-            <div class="topbar-breadcrumb">Admin › Master Data › Village</div>
+            <div class="topbar-title">👤 Users Management</div>
+            <div class="topbar-breadcrumb">Admin › Access Control › Users</div>
           </div>
         </div>
 
@@ -224,44 +229,41 @@
       {{-- ── CONTENT ── --}}
       <div class="content">
 
-        {{-- ═══ VILLAGE MANAGEMENT ═══ --}}
+        {{-- ═══ USERS MANAGEMENT ═══ --}}
         <div class="page-heading">
-          <h2>🏘️ Village Management</h2>
-          <div class="ph-sub">Add, edit, and manage villages under each Mandal</div>
+          <h2>👤 Users Management</h2>
+          <div class="ph-sub">Manage user accounts and permissions</div>
         </div>
 
         <div class="toolbar">
           <div class="search-box">
-            🔎 <input type="text" id="village-search" placeholder="Search Village by name…" oninput="filterAndPaginate()">
+            🔎 <input type="text" id="users-search" placeholder="Search User by name or email…" oninput="filterAndPaginate()">
           </div>
-          <button class="btn-primary-sm" onclick="openAddVillageModal()">
-            + Add Village
-          </button>
         </div>
 
         <div class="section-card">
-          <div class="loading-bar" id="village-loading"><div class="spinner"></div> Loading villages…</div>
-          <table class="data-table" id="village-table" style="display:none">
+          <div class="loading-bar" id="users-loading"><div class="spinner"></div> Loading users…</div>
+          <table class="data-table" id="users-table" style="display:none">
             <thead>
               <tr>
                 <th style="width:6%">#</th>
-                <th>Village Name</th>
-                <th>Slug</th>
-                <th>Mandal</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Working Office</th>
                 <th style="width:12%">Status</th>
                 <th style="width:12%;text-align:center">Actions</th>
               </tr>
             </thead>
-            <tbody id="village-tbody"></tbody>
+            <tbody id="users-tbody"></tbody>
           </table>
-          <div class="empty-state" id="village-empty" style="display:none">
-            <div class="es-icon">🏘️</div> No villages found.
+          <div class="empty-state" id="users-empty" style="display:none">
+            <div class="es-icon">👤</div> No users found.
           </div>
-          <div class="pagination-container" id="village-pagination">
+          <div class="pagination-container" id="users-pagination">
             <div class="pagination-info">
-              Showing <strong id="village-info-from">1</strong>–<strong id="village-info-to">10</strong> of <strong id="village-info-total">0</strong>
+              Showing <strong id="users-info-from">1</strong>–<strong id="users-info-to">10</strong> of <strong id="users-info-total">0</strong>
             </div>
-            <div class="pagination-nav" id="village-nav"></div>
+            <div class="pagination-nav" id="users-nav"></div>
           </div>
         </div>
 
@@ -269,77 +271,83 @@
     </div>
   </div>
 
-  {{-- ══════════════ ADD VILLAGE MODAL ══════════════ --}}
-  <div class="modal-overlay" id="village-modal-overlay" onclick="if(event.target===this) closeModal('village-modal-overlay')">
+  {{-- ══════════════ EDIT USER MODAL ══════════════ --}}
+  <div class="modal-overlay" id="user-edit-modal-overlay" onclick="if(event.target===this) closeModal('user-edit-modal-overlay')">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>+ Add Village</h3>
-        <button class="modal-close" onclick="closeModal('village-modal-overlay')">✕</button>
+        <h3>✎ Edit User</h3>
+        <button class="modal-close" onclick="closeModal('user-edit-modal-overlay')">✕</button>
       </div>
-      <form id="village-add-form" onsubmit="submitVillageForm(event)">
+      <form id="user-edit-form" onsubmit="submitEditUserForm(event)">
+        <input type="hidden" id="user-edit-id">
         <div class="modal-body">
-          <div class="form-field" id="village-mandal-field">
-            <label>Mandal *</label>
-            <select id="village-mandal-select" required></select>
-            <div class="field-error" id="village-mandal-error"></div>
+          
+          {{-- ═══ BASIC INFO ═══ --}}
+          <div class="form-field" id="user-edit-name-field">
+            <label>Name *</label>
+            <input type="text" id="user-edit-name-input" required>
+            <div class="field-error" id="user-edit-name-error"></div>
           </div>
-          <div class="form-field" id="village-name-field">
-            <label>Village Name *</label>
-            <input type="text" id="village-name-input" placeholder="e.g., Sangareddy" required>
-            <div class="field-error" id="village-name-error"></div>
+  
+          <div class="form-field" id="user-edit-email-field">
+            <label>Email *</label>
+            <input type="email" id="user-edit-email-input" required>
+            <div class="field-error" id="user-edit-email-error"></div>
           </div>
+  
+          <div class="form-field" id="user-edit-office-field">
+            <label>Working Office *</label>
+            <select id="user-edit-office-select" required></select>
+            <div class="field-error" id="user-edit-office-error"></div>
+          </div>
+  
+          <div class="form-field" id="user-edit-status-field">
+            <label>Status</label>
+            <select id="user-edit-status-select">
+              <option value="1">✔ Active</option>
+              <option value="0">— Inactive</option>
+            </select>
+          </div>
+  
+          {{-- ═══ UPLOAD MANDALS PERMISSION ═══ --}}
+          <div class="section-divider"></div>
+          <div class="form-field" id="user-edit-upload-mandals-field">
+            <label>📤 Upload Mandals</label>
+            <div class="form-field-sub">Select mandals where user can upload documents</div>
+            <div class="checkbox-group" id="user-edit-upload-mandals-list">
+              <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
+            </div>
+            <div class="field-error" id="user-edit-upload-mandals-error"></div>
+          </div>
+  
+          {{-- ═══ VIEW MANDALS PERMISSION ═══ --}}
+          <div class="section-divider"></div>
+          <div class="form-field" id="user-edit-view-mandals-field">
+            <label>👁 View Mandals</label>
+            <div class="form-field-sub">Select mandals where user can view documents</div>
+            <div class="checkbox-group" id="user-edit-view-mandals-list">
+              <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
+            </div>
+            <div class="field-error" id="user-edit-view-mandals-error"></div>
+          </div>
+  
+          {{-- ═══ EDIT MANDALS PERMISSION ═══ --}}
+          <div class="section-divider"></div>
+          <div class="form-field" id="user-edit-edit-mandals-field">
+            <label>✎ Edit Mandals</label>
+            <div class="form-field-sub">Select mandals where user can edit documents</div>
+            <div class="checkbox-group" id="user-edit-edit-mandals-list">
+              <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
+            </div>
+            <div class="field-error" id="user-edit-edit-mandals-error"></div>
+          </div>
+  
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn-secondary-sm" onclick="closeModal('village-modal-overlay')">Cancel</button>
-          <button type="submit" class="btn-primary-sm" id="village-submit-btn">Save Village</button>
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('user-edit-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="user-edit-submit-btn">Update User</button>
         </div>
       </form>
-    </div>
-  </div>
-
-  {{-- ══════════════ EDIT VILLAGE MODAL ══════════════ --}}
-  <div class="modal-overlay" id="village-edit-modal-overlay" onclick="if(event.target===this) closeModal('village-edit-modal-overlay')">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>✎ Edit Village</h3>
-        <button class="modal-close" onclick="closeModal('village-edit-modal-overlay')">✕</button>
-      </div>
-      <form id="village-edit-form" onsubmit="submitEditVillageForm(event)">
-        <input type="hidden" id="village-edit-id">
-        <div class="modal-body">
-          <div class="form-field" id="village-edit-mandal-field">
-            <label>Mandal *</label>
-            <select id="village-edit-mandal-select" required></select>
-            <div class="field-error" id="village-edit-mandal-error"></div>
-          </div>
-          <div class="form-field" id="village-edit-name-field">
-            <label>Village Name *</label>
-            <input type="text" id="village-edit-name-input" placeholder="e.g., Sangareddy" required>
-            <div class="field-error" id="village-edit-name-error"></div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary-sm" onclick="closeModal('village-edit-modal-overlay')">Cancel</button>
-          <button type="submit" class="btn-primary-sm" id="village-edit-submit-btn">Update Village</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {{-- ══════════════ DELETE CONFIRM MODAL ══════════════ --}}
-  <div class="modal-overlay" id="delete-modal-overlay" onclick="if(event.target===this) closeModal('delete-modal-overlay')">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>🗑️ Confirm Delete</h3>
-        <button class="modal-close" onclick="closeModal('delete-modal-overlay')">✕</button>
-      </div>
-      <div class="modal-body">
-        <p id="delete-modal-message" style="font-size:12px;color:#333;line-height:1.5"></p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-secondary-sm" onclick="closeModal('delete-modal-overlay')">Cancel</button>
-        <button type="button" class="btn-icon danger" style="width:auto;padding:8px 16px;font-size:11px;font-weight:bold;text-transform:uppercase" id="delete-confirm-btn" onclick="confirmDelete()">Delete</button>
-      </div>
     </div>
   </div>
 
@@ -363,22 +371,22 @@ let dataLoaded = false;
    PAGE LOAD
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  loadVillageData();
+  loadUsersData();
 });
 
 /* ══════════════════════════════════════════════════════════════════
-   LOAD VILLAGE DATA
+   LOAD USERS DATA
 ══════════════════════════════════════════════════════════════════ */
-function loadVillageData() {
-  const loadingEl = document.getElementById('village-loading');
-  const tableEl   = document.getElementById('village-table');
-  const emptyEl   = document.getElementById('village-empty');
+function loadUsersData() {
+  const loadingEl = document.getElementById('users-loading');
+  const tableEl   = document.getElementById('users-table');
+  const emptyEl   = document.getElementById('users-empty');
 
   loadingEl.classList.add('show');
   tableEl.style.display = 'none';
   emptyEl.style.display = 'none';
 
-  fetch('/api/admin/villages', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+  fetch('/api/admin/users', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
       dataLoaded = true;
@@ -389,7 +397,7 @@ function loadVillageData() {
       renderTable();
       updatePagination();
     })
-    .catch(() => showToast('Failed to load villages.', true))
+    .catch(() => showToast('Failed to load users.', true))
     .finally(() => loadingEl.classList.remove('show'));
 }
 
@@ -397,9 +405,9 @@ function loadVillageData() {
    RENDER TABLE
 ══════════════════════════════════════════════════════════════════ */
 function renderTable() {
-  const tbody   = document.getElementById('village-tbody');
-  const tableEl = document.getElementById('village-table');
-  const emptyEl = document.getElementById('village-empty');
+  const tbody   = document.getElementById('users-tbody');
+  const tableEl = document.getElementById('users-table');
+  const emptyEl = document.getElementById('users-empty');
   const state   = paginationState;
 
   tbody.innerHTML = '';
@@ -423,13 +431,12 @@ function renderTable() {
     tr.innerHTML = `
       <td>${globalIndex}</td>
       <td>${escapeHtml(row.name)}</td>
-      <td>${escapeHtml(row.slug)}</td>
-      <td>${escapeHtml(row.mandal_name ?? '—')}</td>
-      <td>${row.is_active ? '<span class="pill pill-active">✔ Active</span>' : '<span class="pill pill-inactive">— Inactive</span>'}</td>
+      <td>${escapeHtml(row.email)}</td>
+      <td>${escapeHtml(row.working_office_name ?? '—')}</td>
+      <td>${row.status ? '<span class="pill pill-active">✔ Active</span>' : '<span class="pill pill-inactive">— Inactive</span>'}</td>
       <td style="text-align:center">
         <div class="row-actions" style="justify-content:center">
-          <button class="btn-icon" title="Edit" onclick="openEditVillageModal(${row.id})">✎</button>
-          <button class="btn-icon danger" title="Delete" onclick="openDeleteModal(${row.id})">✕</button>
+          <button class="btn-icon" title="Edit" onclick="openEditUserModal(${row.id})">✎</button>
         </div>
       </td>`;
     tbody.appendChild(tr);
@@ -441,8 +448,8 @@ function renderTable() {
 ══════════════════════════════════════════════════════════════════ */
 function updatePagination() {
   const state = paginationState;
-  const paginationEl = document.getElementById('village-pagination');
-  const navEl = document.getElementById('village-nav');
+  const paginationEl = document.getElementById('users-pagination');
+  const navEl = document.getElementById('users-nav');
 
   if (state.filteredData.length === 0) {
     paginationEl.style.display = 'none';
@@ -453,9 +460,9 @@ function updatePagination() {
 
   const start = (state.currentPage - 1) * PAGINATION_SIZE + 1;
   const end = Math.min(state.currentPage * PAGINATION_SIZE, state.filteredData.length);
-  document.getElementById('village-info-from').textContent = start;
-  document.getElementById('village-info-to').textContent = end;
-  document.getElementById('village-info-total').textContent = state.filteredData.length;
+  document.getElementById('users-info-from').textContent = start;
+  document.getElementById('users-info-to').textContent = end;
+  document.getElementById('users-info-total').textContent = state.filteredData.length;
 
   navEl.innerHTML = '';
   for (let p = 1; p <= state.totalPages; p++) {
@@ -480,9 +487,9 @@ function goToPage(page) {
 ══════════════════════════════════════════════════════════════════ */
 function filterAndPaginate() {
   if (!dataLoaded) return;
-  const query = document.getElementById('village-search').value.toLowerCase();
-  paginationState.filteredData = paginationState.allData.filter(v =>
-    v.name.toLowerCase().includes(query) || v.slug.toLowerCase().includes(query) || (v.mandal_name ?? '').toLowerCase().includes(query)
+  const query = document.getElementById('users-search').value.toLowerCase();
+  paginationState.filteredData = paginationState.allData.filter(u =>
+    u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)
   );
   paginationState.currentPage = 1;
   paginationState.totalPages = Math.ceil(paginationState.filteredData.length / PAGINATION_SIZE) || 1;
@@ -491,142 +498,265 @@ function filterAndPaginate() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   POPULATE MANDAL DROPDOWN
+   POPULATE WORKING OFFICES DROPDOWN
 ══════════════════════════════════════════════════════════════════ */
-function populateMandalDropdown(selectId, selectedId = null) {
+function populateOfficesDropdown(selectId, selectedId = null) {
   const sel = document.getElementById(selectId);
-  sel.innerHTML = '<option value="">Loading mandals…</option>';
-
-  fetch('/api/admin/mandals', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(r => r.json())
-    .then(mandals => {
-      sel.innerHTML = '<option value="">— Select Mandal —</option>';
-      const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
-      data.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.name;
-        sel.appendChild(opt);
-      });
-      if (selectedId !== null) {
-        sel.value = selectedId;
-      }
-    })
-    .catch(() => {
-      sel.innerHTML = '<option value="">Failed to load mandals</option>';
-      showToast('Failed to load mandals for dropdown.', true);
+  if (!sel) return;
+  
+  sel.innerHTML = '<option value="">Loading offices…</option>';
+ 
+  fetch('/api/admin/working-offices', { 
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+  })
+  .then(r => r.json())
+  .then(offices => {
+    sel.innerHTML = '<option value="">— Select Office —</option>';
+    const data = Array.isArray(offices) ? offices : (offices.data || []);
+    data.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.name;
+      sel.appendChild(opt);
     });
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   ADD VILLAGE
-══════════════════════════════════════════════════════════════════ */
-function openAddVillageModal() {
-  document.getElementById('village-add-form').reset();
-  clearFieldError('village-mandal-field', 'village-mandal-error');
-  clearFieldError('village-name-field', 'village-name-error');
-  populateMandalDropdown('village-mandal-select');
-  openModal('village-modal-overlay');
-}
-
-function submitVillageForm(e) {
-  e.preventDefault();
-  clearFieldError('village-mandal-field', 'village-mandal-error');
-  clearFieldError('village-name-field', 'village-name-error');
-
-  const mandalId = document.getElementById('village-mandal-select').value;
-  const name     = document.getElementById('village-name-input').value.trim();
-
-  let hasError = false;
-  if (!mandalId) {
-    setFieldError('village-mandal-field', 'village-mandal-error', 'Please select a Mandal.');
-    hasError = true;
-  }
-  if (!name) {
-    setFieldError('village-name-field', 'village-name-error', 'Village name is required.');
-    hasError = true;
-  }
-  if (hasError) return;
-
-  const btn = document.getElementById('village-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-
-  fetch('/api/admin/villages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-CSRF-TOKEN': csrfToken(),
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-    body: JSON.stringify({ mandal_id: mandalId, name }),
-  })
-  .then(async r => {
-    const data = await r.json().catch(() => ({}));
-
-    if (r.status === 422) {
-      if (data.errors?.mandal_id) setFieldError('village-mandal-field', 'village-mandal-error', data.errors.mandal_id[0]);
-      if (data.errors?.name)      setFieldError('village-name-field', 'village-name-error', data.errors.name[0]);
-      if (!data.errors) showToast(data.message || 'Validation failed.', true);
-      return;
+    if (selectedId !== null) {
+      sel.value = selectedId;
     }
-    if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to add village.', true);
-      return;
-    }
-
-    showToast('✔ Village added successfully.');
-    closeModal('village-modal-overlay');
-    loadVillageData();
   })
-  .catch(() => showToast('Network error. Please try again.', true))
-  .finally(() => {
-    btn.disabled = false;
-    btn.textContent = 'Save Village';
+  .catch(err => {
+    console.error('Failed to load offices:', err);
+    sel.innerHTML = '<option value="">Failed to load offices</option>';
+    showToast('Failed to load offices for dropdown.', true);
   });
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   EDIT VILLAGE
+   POPULATE MANDALS CHECKBOXES FOR 3 PERMISSION TYPES
 ══════════════════════════════════════════════════════════════════ */
-function openEditVillageModal(id) {
-  const village = paginationState.allData.find(v => v.id === id);
-  if (!village) return;
-
-  document.getElementById('village-edit-id').value = id;
-  document.getElementById('village-edit-name-input').value = village.name;
-  populateMandalDropdown('village-edit-mandal-select', village.mandal_id);
-  clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
-  clearFieldError('village-edit-name-field', 'village-edit-name-error');
-  openModal('village-edit-modal-overlay');
+function populateMandalsCheckboxes(permissionType, selectedMandals = []) {
+  let containerId;
+  
+  switch(permissionType) {
+    case 'upload':
+      containerId = 'user-edit-upload-mandals-list';
+      break;
+    case 'view':
+      containerId = 'user-edit-view-mandals-list';
+      break;
+    case 'edit':
+      containerId = 'user-edit-edit-mandals-list';
+      break;
+    default:
+      console.error(`Unknown permission type: ${permissionType}`);
+      return;
+  }
+ 
+  const container = document.getElementById(containerId);
+  if (!container) {
+    console.error(`Container not found: ${containerId}`);
+    return;
+  }
+  
+  container.innerHTML = '<div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>';
+ 
+  // Normalize selected mandals to ensure they're all integers
+  const normalizedSelected = normalizeMandalIds(selectedMandals);
+  
+  console.log(`[${permissionType}] Loading mandals with pre-selected IDs:`, normalizedSelected);
+ 
+  fetch('/api/admin/mandals', { 
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } 
+  })
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
+  .then(mandals => {
+    const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
+    
+    if (data.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding: 10px; color: #999;">No mandals available</div>';
+      return;
+    }
+ 
+    container.innerHTML = '';
+    let checkedCount = 0;
+    
+    data.forEach(m => {
+      const mandalId = parseInt(m.id, 10);
+      const isChecked = normalizedSelected.includes(mandalId);
+      if (isChecked) checkedCount++;
+      
+      const item = document.createElement('div');
+      item.className = 'checkbox-item';
+      
+      const fieldId = `mandal-${permissionType}-${mandalId}`;
+      const fieldClass = `mandal-${permissionType}`;
+      
+      item.innerHTML = `
+        <input type="checkbox" 
+               id="${fieldId}" 
+               class="${fieldClass}" 
+               value="${mandalId}" 
+               ${isChecked ? 'checked' : ''}>
+        <label for="${fieldId}">${escapeHtml(m.name)}</label>
+      `;
+      container.appendChild(item);
+    });
+ 
+    console.log(`[${permissionType}] Pre-selected ${checkedCount} out of ${data.length} mandals`);
+  })
+  .catch(err => {
+    console.error(`Failed to load ${permissionType} mandals:`, err);
+    container.innerHTML = '<div style="text-align:center; padding: 10px; color: #c0392b;">Failed to load mandals</div>';
+    showToast('Failed to load mandals for ' + permissionType + ' permission.', true);
+  });
+}
+ 
+/* ══════════════════════════════════════════════════════════════════
+   OPEN EDIT USER MODAL
+══════════════════════════════════════════════════════════════════ */
+function openEditUserModal(id) {
+  // Show loading state by setting the ID first
+  document.getElementById('user-edit-id').value = id;
+  openModal('user-edit-modal-overlay');
+  
+  // Fetch the specific user with permissions from the API
+  fetch(`/api/admin/users/${id}`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
+  .then(data => {
+    if (!data.success || !data.user) {
+      showToast('Failed to load user data.', true);
+      closeModal('user-edit-modal-overlay');
+      return;
+    }
+    
+    const user = data.user;
+    console.log('User data loaded:', user);
+    
+    // Populate basic form fields
+    document.getElementById('user-edit-name-input').value = user.name || '';
+    document.getElementById('user-edit-email-input').value = user.email || '';
+    document.getElementById('user-edit-status-select').value = user.status ? '1' : '0';
+    
+    // Populate working office dropdown
+    populateOfficesDropdown('user-edit-office-select', user.working_office_id);
+    
+    // Extract and normalize permission IDs
+    let uploadMandalIds = [];
+    let viewMandalIds = [];
+    let editMandalIds = [];
+    
+    if (user.permissions) {
+      uploadMandalIds = normalizeMandalIds(user.permissions.upload_mandal_ids);
+      viewMandalIds = normalizeMandalIds(user.permissions.view_mandal_ids);
+      editMandalIds = normalizeMandalIds(user.permissions.edit_mandal_ids);
+    }
+    
+    console.log('Normalized permissions:', {
+      uploadMandalIds,
+      viewMandalIds,
+      editMandalIds
+    });
+    
+    // Populate mandal checkboxes with pre-selected values
+    populateMandalsCheckboxes('upload', uploadMandalIds);
+    populateMandalsCheckboxes('view', viewMandalIds);
+    populateMandalsCheckboxes('edit', editMandalIds);
+    
+    // Clear any previous error messages
+    clearFieldError('user-edit-name-field', 'user-edit-name-error');
+    clearFieldError('user-edit-email-field', 'user-edit-email-error');
+    clearFieldError('user-edit-office-field', 'user-edit-office-error');
+  })
+  .catch(err => {
+    console.error('Failed to load user:', err);
+    showToast('Failed to load user data. Please try again.', true);
+    closeModal('user-edit-modal-overlay');
+  });
 }
 
-function submitEditVillageForm(e) {
+function normalizeMandalIds(input) {
+  if (!input) return [];
+  
+  if (!Array.isArray(input)) {
+    return [];
+  }
+  
+  return input
+    .map(id => {
+      const parsed = parseInt(id, 10);
+      return isNaN(parsed) ? null : parsed;
+    })
+    .filter(id => id !== null);
+}
+/* ══════════════════════════════════════════════════════════════════
+   SUBMIT EDIT USER FORM
+══════════════════════════════════════════════════════════════════ */
+function submitEditUserForm(e) {
   e.preventDefault();
-  clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
-  clearFieldError('village-edit-name-field', 'village-edit-name-error');
-
-  const id = document.getElementById('village-edit-id').value;
-  const mandalId = document.getElementById('village-edit-mandal-select').value;
-  const name = document.getElementById('village-edit-name-input').value.trim();
-
+ 
+  // Clear previous errors
+  clearFieldError('user-edit-name-field', 'user-edit-name-error');
+  clearFieldError('user-edit-email-field', 'user-edit-email-error');
+  clearFieldError('user-edit-office-field', 'user-edit-office-error');
+ 
+  // Get form values
+  const id = document.getElementById('user-edit-id').value;
+  const name = document.getElementById('user-edit-name-input').value.trim();
+  const email = document.getElementById('user-edit-email-input').value.trim();
+  const officeId = document.getElementById('user-edit-office-select').value;
+  const status = parseInt(document.getElementById('user-edit-status-select').value, 10);
+  
+  // Get selected mandals for each permission type
+  const uploadMandalIds = Array.from(document.querySelectorAll('input.mandal-upload:checked'))
+    .map(checkbox => parseInt(checkbox.value, 10));
+  
+  const viewMandalIds = Array.from(document.querySelectorAll('input.mandal-view:checked'))
+    .map(checkbox => parseInt(checkbox.value, 10));
+  
+  const editMandalIds = Array.from(document.querySelectorAll('input.mandal-edit:checked'))
+    .map(checkbox => parseInt(checkbox.value, 10));
+ 
+  console.log('Form submission data:', {
+    id,
+    name,
+    email,
+    officeId,
+    status,
+    uploadMandalIds,
+    viewMandalIds,
+    editMandalIds
+  });
+ 
+  // Validate required fields
   let hasError = false;
-  if (!mandalId) {
-    setFieldError('village-edit-mandal-field', 'village-edit-mandal-error', 'Please select a Mandal.');
+  if (!name) {
+    setFieldError('user-edit-name-field', 'user-edit-name-error', 'Name is required.');
     hasError = true;
   }
-  if (!name) {
-    setFieldError('village-edit-name-field', 'village-edit-name-error', 'Village name is required.');
+  if (!email) {
+    setFieldError('user-edit-email-field', 'user-edit-email-error', 'Email is required.');
+    hasError = true;
+  }
+  if (!officeId) {
+    setFieldError('user-edit-office-field', 'user-edit-office-error', 'Please select an office.');
     hasError = true;
   }
   if (hasError) return;
-
-  const btn = document.getElementById('village-edit-submit-btn');
+ 
+  // Disable submit button and show loading state
+  const btn = document.getElementById('user-edit-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Updating…';
-
-  fetch(`/api/admin/villages/${id}`, {
+ 
+  // Send update request
+  fetch(`/api/admin/users/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -634,83 +764,49 @@ function submitEditVillageForm(e) {
       'X-CSRF-TOKEN': csrfToken(),
       'X-Requested-With': 'XMLHttpRequest',
     },
-    body: JSON.stringify({ mandal_id: mandalId, name }),
+    body: JSON.stringify({
+      name,
+      email,
+      working_office_id: officeId,
+      status,
+      upload_mandal_ids: uploadMandalIds,
+      view_mandal_ids: viewMandalIds,
+      edit_mandal_ids: editMandalIds,
+    }),
   })
   .then(async r => {
     const data = await r.json().catch(() => ({}));
-
+ 
+    // Handle validation errors (422)
     if (r.status === 422) {
-      if (data.errors?.mandal_id) setFieldError('village-edit-mandal-field', 'village-edit-mandal-error', data.errors.mandal_id[0]);
-      if (data.errors?.name)      setFieldError('village-edit-name-field', 'village-edit-name-error', data.errors.name[0]);
+      if (data.errors?.name) setFieldError('user-edit-name-field', 'user-edit-name-error', data.errors.name[0]);
+      if (data.errors?.email) setFieldError('user-edit-email-field', 'user-edit-email-error', data.errors.email[0]);
+      if (data.errors?.working_office_id) setFieldError('user-edit-office-field', 'user-edit-office-error', data.errors.working_office_id[0]);
       if (!data.errors) showToast(data.message || 'Validation failed.', true);
       return;
     }
+    
+    // Handle general errors
     if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to update village.', true);
+      showToast(data.message || 'Failed to update user.', true);
       return;
     }
-
-    showToast('✔ Village updated successfully.');
-    closeModal('village-edit-modal-overlay');
-    loadVillageData();
+ 
+    // Success
+    showToast('✔ User updated successfully.');
+    closeModal('user-edit-modal-overlay');
+    loadUsersData(); // Reload the users list
   })
-  .catch(() => showToast('Network error. Please try again.', true))
+  .catch(err => {
+    console.error('Update error:', err);
+    showToast('Network error. Please try again.', true);
+  })
   .finally(() => {
+    // Re-enable submit button
     btn.disabled = false;
-    btn.textContent = 'Update Village';
+    btn.textContent = 'Update User';
   });
 }
-
-/* ══════════════════════════════════════════════════════════════════
-   DELETE VILLAGE
-══════════════════════════════════════════════════════════════════ */
-let pendingDelete = null;
-
-function openDeleteModal(id) {
-  const village = paginationState.allData.find(v => v.id === id);
-  if (!village) return;
-  
-  pendingDelete = { type: 'village', id: id, name: village.name };
-  document.getElementById('delete-modal-message').textContent = `Are you sure you want to delete the village "${village.name}"? This action cannot be undone.`;
-  openModal('delete-modal-overlay');
-}
-
-function confirmDelete() {
-  if (!pendingDelete) return;
-
-  const btn = document.getElementById('delete-confirm-btn');
-  btn.disabled = true;
-  btn.textContent = 'Deleting…';
-
-  fetch(`/api/admin/villages/${pendingDelete.id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-CSRF-TOKEN': csrfToken(),
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-  })
-  .then(async r => {
-    const data = await r.json().catch(() => ({}));
-
-    if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to delete village.', true);
-      return;
-    }
-
-    showToast('✔ Village deleted successfully.');
-    closeModal('delete-modal-overlay');
-    loadVillageData();
-  })
-  .catch(() => showToast('Network error. Please try again.', true))
-  .finally(() => {
-    btn.disabled = false;
-    btn.textContent = 'Delete';
-    pendingDelete = null;
-  });
-}
-
 /* ══════════════════════════════════════════════════════════════════
    UTILITY FUNCTIONS
 ══════════════════════════════════════════════════════════════════ */
@@ -727,13 +823,21 @@ function closeModal(id) {
 }
 
 function clearFieldError(fieldId, errorId) {
-  document.getElementById(fieldId).classList.remove('has-error');
-  document.getElementById(errorId).textContent = '';
+  const field = document.getElementById(fieldId);
+  if (field) {
+    field.classList.remove('has-error');
+    const error = document.getElementById(errorId);
+    if (error) error.textContent = '';
+  }
 }
 
 function setFieldError(fieldId, errorId, message) {
-  document.getElementById(fieldId).classList.add('has-error');
-  document.getElementById(errorId).textContent = message;
+  const field = document.getElementById(fieldId);
+  if (field) {
+    field.classList.add('has-error');
+    const error = document.getElementById(errorId);
+    if (error) error.textContent = message;
+  }
 }
 
 function escapeHtml(str) {

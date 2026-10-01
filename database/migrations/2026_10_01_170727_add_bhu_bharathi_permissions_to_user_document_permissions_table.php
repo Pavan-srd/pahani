@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('user_document_permissions', function (Blueprint $table) {
-            $table->json('upload_mandal_ids')->nullable()->after('can_edit');
-            $table->json('view_mandal_ids')->nullable()->after('upload_mandal_ids');
-            $table->json('edit_mandal_ids')->nullable()->after('view_mandal_ids');
+            $table->json('bb_upload_mandal_ids')->nullable()->after('edit_mandal_ids');
+            $table->json('bb_view_mandal_ids')->nullable()->after('bb_upload_mandal_ids');
+            $table->json('bb_edit_mandal_ids')->nullable()->after('bb_view_mandal_ids');
         });
     }
 
@@ -24,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('user_document_permissions', function (Blueprint $table) {
-            $table->dropColumn(['upload_mandal_ids', 'view_mandal_ids', 'edit_mandal_ids']);
+            $table->dropColumn(['bb_upload_mandal_ids', 'bb_view_mandal_ids', 'bb_edit_mandal_ids']);
         });
     }
 };

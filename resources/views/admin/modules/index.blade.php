@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Village Management — Admin Dashboard</title>
+  <title>Bhu Bharathi Modules — Admin Dashboard</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;background:#f0f4f8;color:#1a1a2e}
@@ -42,6 +42,7 @@
 
     .topbar-right{display:flex;align-items:center;gap:16px}
     .icon-btn{background:none;border:none;cursor:pointer;font-size:15px;color:#607d8b;position:relative;padding:4px}
+    .icon-btn .badge-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:#c0392b;border:1.5px solid white}
 
     /* profile dropdown */
     .profile-wrap{position:relative}
@@ -56,10 +57,14 @@
 
     .profile-menu{position:absolute;top:calc(100% + 8px);right:0;background:white;border:1px solid #d5e8f5;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,0.12);min-width:180px;display:none;overflow:hidden;z-index:300}
     .profile-wrap.open .profile-menu{display:block}
+    .profile-menu-header{padding:10px 14px;border-bottom:1px solid #eef3f7}
+    .profile-menu-header .pm-name{font-size:11px;font-weight:bold;color:#1a1a2e}
+    .profile-menu-header .pm-email{font-size:9px;color:#888;margin-top:1px}
     .profile-menu-item{display:flex;align-items:center;gap:9px;padding:9px 14px;font-size:11px;color:#333;cursor:pointer;text-decoration:none;transition:background 0.15s}
     .profile-menu-item:hover{background:#eaf2f8}
     .profile-menu-item.danger{color:#c0392b}
     .profile-menu-item.danger:hover{background:#fdecea}
+    .profile-menu-divider{height:1px;background:#eef3f7;margin:4px 0}
 
     /* ══ CONTENT ══ */
     .content{flex:1;padding:18px 20px;max-width:1100px;width:100%;margin:0 auto}
@@ -156,13 +161,13 @@
         <a class="sb-item" href="{{ route('admin.mandals.index') }}">
           <span class="sb-icon">🏛️</span> Mandal
         </a>
-        <a class="sb-item active" href="{{ route('admin.villages.index') }}">
+        <a class="sb-item" href="{{ route('admin.villages.index') }}">
           <span class="sb-icon">🏘️</span> Village
         </a>
         <a class="sb-item" href="{{ route('admin.working-offices.index') }}">
           <span class="sb-icon">🏢</span> Working Office
         </a>
-        <a class="sb-item" href="{{ route('admin.modules.index') }}">
+        <a class="sb-item active" href="{{ route('admin.modules.index') }}">
           <span class="sb-icon">🧩</span> Modules
         </a>
 
@@ -191,12 +196,14 @@
         <div class="topbar-left">
           <button class="hamburger" onclick="openSidebar()">☰</button>
           <div>
-            <div class="topbar-title">🏘️ Village Management</div>
-            <div class="topbar-breadcrumb">Admin › Master Data › Village</div>
+            <div class="topbar-title">🧩 Module Management</div>
+            <div class="topbar-breadcrumb">Admin › Master Data › Bhu Bharathi Modules</div>
           </div>
         </div>
 
         <div class="topbar-right">
+          <button class="icon-btn" title="Notifications">🔔<span class="badge-dot"></span></button>
+
           <div class="profile-wrap" id="profile-wrap">
             <div class="profile-trigger" onclick="toggleProfileMenu(event)">
               <div class="avatar">{{ strtoupper(substr(auth()->user()->name ?? 'A', 0, 1)) }}</div>
@@ -208,6 +215,14 @@
             </div>
 
             <div class="profile-menu">
+              <div class="profile-menu-header">
+                <div class="pm-name">{{ auth()->user()->name ?? 'Admin User' }}</div>
+                <div class="pm-email">{{ auth()->user()->email ?? 'admin@example.com' }}</div>
+              </div>
+              <a class="profile-menu-item" href="#" onclick="event.preventDefault();">
+                <span>👤</span> Profile
+              </a>
+              <div class="profile-menu-divider"></div>
               <a class="profile-menu-item danger" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                 <span>🚪</span> Logout
               </a>
@@ -224,44 +239,45 @@
       {{-- ── CONTENT ── --}}
       <div class="content">
 
-        {{-- ═══ VILLAGE MANAGEMENT ═══ --}}
+        {{-- ═══ MODULE MANAGEMENT ═══ --}}
         <div class="page-heading">
-          <h2>🏘️ Village Management</h2>
-          <div class="ph-sub">Add, edit, and manage villages under each Mandal</div>
+          <h2>🧩 Module Management</h2>
+          <div class="ph-sub">Add, edit, and manage Bhu Bharathi modules</div>
         </div>
 
         <div class="toolbar">
           <div class="search-box">
-            🔎 <input type="text" id="village-search" placeholder="Search Village by name…" oninput="filterAndPaginate()">
+            🔎 <input type="text" id="module-search" placeholder="Search Module by name…" oninput="filterAndPaginate()">
           </div>
-          <button class="btn-primary-sm" onclick="openAddVillageModal()">
-            + Add Village
+          <button class="btn-primary-sm" onclick="openAddModuleModal()">
+            + Add Module
           </button>
         </div>
 
         <div class="section-card">
-          <div class="loading-bar" id="village-loading"><div class="spinner"></div> Loading villages…</div>
-          <table class="data-table" id="village-table" style="display:none">
+          <div class="loading-bar" id="module-loading"><div class="spinner"></div> Loading modules…</div>
+          <table class="data-table" id="module-table" style="display:none">
             <thead>
               <tr>
                 <th style="width:6%">#</th>
-                <th>Village Name</th>
+                <th>Module Name</th>
                 <th>Slug</th>
-                <th>Mandal</th>
+                <th style="width:10%;text-align:center">Disposals</th>
+                <th style="width:14%">Created Date</th>
                 <th style="width:12%">Status</th>
                 <th style="width:12%;text-align:center">Actions</th>
               </tr>
             </thead>
-            <tbody id="village-tbody"></tbody>
+            <tbody id="module-tbody"></tbody>
           </table>
-          <div class="empty-state" id="village-empty" style="display:none">
-            <div class="es-icon">🏘️</div> No villages found.
+          <div class="empty-state" id="module-empty" style="display:none">
+            <div class="es-icon">🧩</div> No modules found.
           </div>
-          <div class="pagination-container" id="village-pagination">
+          <div class="pagination-container" id="module-pagination">
             <div class="pagination-info">
-              Showing <strong id="village-info-from">1</strong>–<strong id="village-info-to">10</strong> of <strong id="village-info-total">0</strong>
+              Showing <strong id="module-info-from">1</strong>–<strong id="module-info-to">10</strong> of <strong id="module-info-total">0</strong>
             </div>
-            <div class="pagination-nav" id="village-nav"></div>
+            <div class="pagination-nav" id="module-nav"></div>
           </div>
         </div>
 
@@ -269,58 +285,63 @@
     </div>
   </div>
 
-  {{-- ══════════════ ADD VILLAGE MODAL ══════════════ --}}
-  <div class="modal-overlay" id="village-modal-overlay" onclick="if(event.target===this) closeModal('village-modal-overlay')">
+  {{-- ══════════════ ADD MODULE MODAL ══════════════ --}}
+  <div class="modal-overlay" id="module-modal-overlay" onclick="if(event.target===this) closeModal('module-modal-overlay')">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>+ Add Village</h3>
-        <button class="modal-close" onclick="closeModal('village-modal-overlay')">✕</button>
+        <h3>+ Add Module</h3>
+        <button class="modal-close" onclick="closeModal('module-modal-overlay')">✕</button>
       </div>
-      <form id="village-add-form" onsubmit="submitVillageForm(event)">
+      <form id="module-add-form" onsubmit="submitModuleForm(event)">
         <div class="modal-body">
-          <div class="form-field" id="village-mandal-field">
-            <label>Mandal *</label>
-            <select id="village-mandal-select" required></select>
-            <div class="field-error" id="village-mandal-error"></div>
+          <div class="form-field" id="module-name-field">
+            <label>Module Name *</label>
+            <input type="text" id="module-name-input" placeholder="e.g., Mutation / Succession" required>
+            <div class="field-error" id="module-name-error"></div>
           </div>
-          <div class="form-field" id="village-name-field">
-            <label>Village Name *</label>
-            <input type="text" id="village-name-input" placeholder="e.g., Sangareddy" required>
-            <div class="field-error" id="village-name-error"></div>
+          <div class="form-field">
+            <label>Status</label>
+            <select id="module-status-select">
+              <option value="1">✔ Active</option>
+              <option value="0">— Inactive</option>
+            </select>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn-secondary-sm" onclick="closeModal('village-modal-overlay')">Cancel</button>
-          <button type="submit" class="btn-primary-sm" id="village-submit-btn">Save Village</button>
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('module-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="module-submit-btn">Save Module</button>
         </div>
       </form>
     </div>
   </div>
 
-  {{-- ══════════════ EDIT VILLAGE MODAL ══════════════ --}}
-  <div class="modal-overlay" id="village-edit-modal-overlay" onclick="if(event.target===this) closeModal('village-edit-modal-overlay')">
+  {{-- ══════════════ EDIT MODULE MODAL ══════════════ --}}
+  <div class="modal-overlay" id="module-edit-modal-overlay" onclick="if(event.target===this) closeModal('module-edit-modal-overlay')">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>✎ Edit Village</h3>
-        <button class="modal-close" onclick="closeModal('village-edit-modal-overlay')">✕</button>
+        <h3>✎ Edit Module</h3>
+        <button class="modal-close" onclick="closeModal('module-edit-modal-overlay')">✕</button>
       </div>
-      <form id="village-edit-form" onsubmit="submitEditVillageForm(event)">
-        <input type="hidden" id="village-edit-id">
+      <form id="module-edit-form" onsubmit="submitEditModuleForm(event)">
+        <input type="hidden" id="module-edit-id">
         <div class="modal-body">
-          <div class="form-field" id="village-edit-mandal-field">
-            <label>Mandal *</label>
-            <select id="village-edit-mandal-select" required></select>
-            <div class="field-error" id="village-edit-mandal-error"></div>
+          <div class="form-field" id="module-edit-name-field">
+            <label>Module Name *</label>
+            <input type="text" id="module-edit-name-input" placeholder="e.g., Mutation / Succession" required>
+            <div class="field-error" id="module-edit-name-error"></div>
           </div>
-          <div class="form-field" id="village-edit-name-field">
-            <label>Village Name *</label>
-            <input type="text" id="village-edit-name-input" placeholder="e.g., Sangareddy" required>
-            <div class="field-error" id="village-edit-name-error"></div>
+          <div class="form-field">
+            <label>Status</label>
+            <select id="module-edit-status-select">
+              <option value="1">✔ Active</option>
+              <option value="0">— Inactive</option>
+            </select>
+            <div style="font-size:9px;color:#888">Inactive modules are hidden from the Bhu Bharathi Disposals dropdown.</div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn-secondary-sm" onclick="closeModal('village-edit-modal-overlay')">Cancel</button>
-          <button type="submit" class="btn-primary-sm" id="village-edit-submit-btn">Update Village</button>
+          <button type="button" class="btn-secondary-sm" onclick="closeModal('module-edit-modal-overlay')">Cancel</button>
+          <button type="submit" class="btn-primary-sm" id="module-edit-submit-btn">Update Module</button>
         </div>
       </form>
     </div>
@@ -347,7 +368,7 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════════════
-   PAGINATION & SEARCH
+   PAGINATION STATE
 ══════════════════════════════════════════════════════════════════ */
 const PAGINATION_SIZE = 10;
 const paginationState = {
@@ -363,22 +384,22 @@ let dataLoaded = false;
    PAGE LOAD
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  loadVillageData();
+  loadModuleData();
 });
 
 /* ══════════════════════════════════════════════════════════════════
-   LOAD VILLAGE DATA
+   LOAD MODULE DATA
 ══════════════════════════════════════════════════════════════════ */
-function loadVillageData() {
-  const loadingEl = document.getElementById('village-loading');
-  const tableEl   = document.getElementById('village-table');
-  const emptyEl   = document.getElementById('village-empty');
+function loadModuleData() {
+  const loadingEl = document.getElementById('module-loading');
+  const tableEl   = document.getElementById('module-table');
+  const emptyEl   = document.getElementById('module-empty');
 
   loadingEl.classList.add('show');
   tableEl.style.display = 'none';
   emptyEl.style.display = 'none';
 
-  fetch('/api/admin/villages', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+  fetch('/api/admin/modules', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.json())
     .then(data => {
       dataLoaded = true;
@@ -389,7 +410,7 @@ function loadVillageData() {
       renderTable();
       updatePagination();
     })
-    .catch(() => showToast('Failed to load villages.', true))
+    .catch(() => showToast('Failed to load modules.', true))
     .finally(() => loadingEl.classList.remove('show'));
 }
 
@@ -397,9 +418,9 @@ function loadVillageData() {
    RENDER TABLE
 ══════════════════════════════════════════════════════════════════ */
 function renderTable() {
-  const tbody   = document.getElementById('village-tbody');
-  const tableEl = document.getElementById('village-table');
-  const emptyEl = document.getElementById('village-empty');
+  const tbody   = document.getElementById('module-tbody');
+  const tableEl = document.getElementById('module-table');
+  const emptyEl = document.getElementById('module-empty');
   const state   = paginationState;
 
   tbody.innerHTML = '';
@@ -424,11 +445,17 @@ function renderTable() {
       <td>${globalIndex}</td>
       <td>${escapeHtml(row.name)}</td>
       <td>${escapeHtml(row.slug)}</td>
-      <td>${escapeHtml(row.mandal_name ?? '—')}</td>
-      <td>${row.is_active ? '<span class="pill pill-active">✔ Active</span>' : '<span class="pill pill-inactive">— Inactive</span>'}</td>
+      <td style="text-align:center">${row.disposals_count ?? 0}</td>
+      <td>${formatDate(row.created_at)}</td>
+      <td>
+        <button type="button" class="pill ${row.is_active ? 'pill-active' : 'pill-inactive'}" style="cursor:pointer"
+                title="Click to ${row.is_active ? 'deactivate' : 'activate'}" onclick="toggleModuleStatus(${row.id})">
+          ${row.is_active ? '✔ Active' : '— Inactive'}
+        </button>
+      </td>
       <td style="text-align:center">
         <div class="row-actions" style="justify-content:center">
-          <button class="btn-icon" title="Edit" onclick="openEditVillageModal(${row.id})">✎</button>
+          <button class="btn-icon" title="Edit" onclick="openEditModuleModal(${row.id})">✎</button>
           <button class="btn-icon danger" title="Delete" onclick="openDeleteModal(${row.id})">✕</button>
         </div>
       </td>`;
@@ -441,8 +468,8 @@ function renderTable() {
 ══════════════════════════════════════════════════════════════════ */
 function updatePagination() {
   const state = paginationState;
-  const paginationEl = document.getElementById('village-pagination');
-  const navEl = document.getElementById('village-nav');
+  const paginationEl = document.getElementById('module-pagination');
+  const navEl = document.getElementById('module-nav');
 
   if (state.filteredData.length === 0) {
     paginationEl.style.display = 'none';
@@ -453,9 +480,9 @@ function updatePagination() {
 
   const start = (state.currentPage - 1) * PAGINATION_SIZE + 1;
   const end = Math.min(state.currentPage * PAGINATION_SIZE, state.filteredData.length);
-  document.getElementById('village-info-from').textContent = start;
-  document.getElementById('village-info-to').textContent = end;
-  document.getElementById('village-info-total').textContent = state.filteredData.length;
+  document.getElementById('module-info-from').textContent = start;
+  document.getElementById('module-info-to').textContent = end;
+  document.getElementById('module-info-total').textContent = state.filteredData.length;
 
   navEl.innerHTML = '';
   for (let p = 1; p <= state.totalPages; p++) {
@@ -480,9 +507,9 @@ function goToPage(page) {
 ══════════════════════════════════════════════════════════════════ */
 function filterAndPaginate() {
   if (!dataLoaded) return;
-  const query = document.getElementById('village-search').value.toLowerCase();
-  paginationState.filteredData = paginationState.allData.filter(v =>
-    v.name.toLowerCase().includes(query) || v.slug.toLowerCase().includes(query) || (v.mandal_name ?? '').toLowerCase().includes(query)
+  const query = document.getElementById('module-search').value.toLowerCase();
+  paginationState.filteredData = paginationState.allData.filter(o =>
+    o.name.toLowerCase().includes(query) || o.slug.toLowerCase().includes(query)
   );
   paginationState.currentPage = 1;
   paginationState.totalPages = Math.ceil(paginationState.filteredData.length / PAGINATION_SIZE) || 1;
@@ -491,68 +518,30 @@ function filterAndPaginate() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   POPULATE MANDAL DROPDOWN
+   ADD MODULE
 ══════════════════════════════════════════════════════════════════ */
-function populateMandalDropdown(selectId, selectedId = null) {
-  const sel = document.getElementById(selectId);
-  sel.innerHTML = '<option value="">Loading mandals…</option>';
-
-  fetch('/api/admin/mandals', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(r => r.json())
-    .then(mandals => {
-      sel.innerHTML = '<option value="">— Select Mandal —</option>';
-      const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
-      data.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.name;
-        sel.appendChild(opt);
-      });
-      if (selectedId !== null) {
-        sel.value = selectedId;
-      }
-    })
-    .catch(() => {
-      sel.innerHTML = '<option value="">Failed to load mandals</option>';
-      showToast('Failed to load mandals for dropdown.', true);
-    });
+function openAddModuleModal() {
+  document.getElementById('module-add-form').reset();
+  clearFieldError('module-name-field', 'module-name-error');
+  openModal('module-modal-overlay');
+  document.getElementById('module-name-input').focus();
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   ADD VILLAGE
-══════════════════════════════════════════════════════════════════ */
-function openAddVillageModal() {
-  document.getElementById('village-add-form').reset();
-  clearFieldError('village-mandal-field', 'village-mandal-error');
-  clearFieldError('village-name-field', 'village-name-error');
-  populateMandalDropdown('village-mandal-select');
-  openModal('village-modal-overlay');
-}
-
-function submitVillageForm(e) {
+function submitModuleForm(e) {
   e.preventDefault();
-  clearFieldError('village-mandal-field', 'village-mandal-error');
-  clearFieldError('village-name-field', 'village-name-error');
+  clearFieldError('module-name-field', 'module-name-error');
 
-  const mandalId = document.getElementById('village-mandal-select').value;
-  const name     = document.getElementById('village-name-input').value.trim();
-
-  let hasError = false;
-  if (!mandalId) {
-    setFieldError('village-mandal-field', 'village-mandal-error', 'Please select a Mandal.');
-    hasError = true;
-  }
+  const name = document.getElementById('module-name-input').value.trim();
   if (!name) {
-    setFieldError('village-name-field', 'village-name-error', 'Village name is required.');
-    hasError = true;
+    setFieldError('module-name-field', 'module-name-error', 'Module name is required.');
+    return;
   }
-  if (hasError) return;
 
-  const btn = document.getElementById('village-submit-btn');
+  const btn = document.getElementById('module-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  fetch('/api/admin/villages', {
+  fetch('/api/admin/modules', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -560,73 +549,64 @@ function submitVillageForm(e) {
       'X-CSRF-TOKEN': csrfToken(),
       'X-Requested-With': 'XMLHttpRequest',
     },
-    body: JSON.stringify({ mandal_id: mandalId, name }),
+    body: JSON.stringify({ name, is_active: document.getElementById('module-status-select').value === '1' }),
   })
   .then(async r => {
     const data = await r.json().catch(() => ({}));
 
     if (r.status === 422) {
-      if (data.errors?.mandal_id) setFieldError('village-mandal-field', 'village-mandal-error', data.errors.mandal_id[0]);
-      if (data.errors?.name)      setFieldError('village-name-field', 'village-name-error', data.errors.name[0]);
-      if (!data.errors) showToast(data.message || 'Validation failed.', true);
+      const msg = data.errors?.name?.[0] || data.message || 'Validation failed.';
+      setFieldError('module-name-field', 'module-name-error', msg);
       return;
     }
     if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to add village.', true);
+      showToast(data.message || 'Failed to add module.', true);
       return;
     }
 
-    showToast('✔ Village added successfully.');
-    closeModal('village-modal-overlay');
-    loadVillageData();
+    showToast('✔ Module added successfully.');
+    closeModal('module-modal-overlay');
+    loadModuleData();
   })
   .catch(() => showToast('Network error. Please try again.', true))
   .finally(() => {
     btn.disabled = false;
-    btn.textContent = 'Save Village';
+    btn.textContent = 'Save Module';
   });
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   EDIT VILLAGE
+   EDIT MODULE
 ══════════════════════════════════════════════════════════════════ */
-function openEditVillageModal(id) {
-  const village = paginationState.allData.find(v => v.id === id);
-  if (!village) return;
+function openEditModuleModal(id) {
+  const module = paginationState.allData.find(o => o.id === id);
+  if (!module) return;
 
-  document.getElementById('village-edit-id').value = id;
-  document.getElementById('village-edit-name-input').value = village.name;
-  populateMandalDropdown('village-edit-mandal-select', village.mandal_id);
-  clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
-  clearFieldError('village-edit-name-field', 'village-edit-name-error');
-  openModal('village-edit-modal-overlay');
+  document.getElementById('module-edit-id').value = id;
+  document.getElementById('module-edit-name-input').value = module.name;
+  document.getElementById('module-edit-status-select').value = module.is_active ? '1' : '0';
+  clearFieldError('module-edit-name-field', 'module-edit-name-error');
+  openModal('module-edit-modal-overlay');
+  document.getElementById('module-edit-name-input').focus();
 }
 
-function submitEditVillageForm(e) {
+function submitEditModuleForm(e) {
   e.preventDefault();
-  clearFieldError('village-edit-mandal-field', 'village-edit-mandal-error');
-  clearFieldError('village-edit-name-field', 'village-edit-name-error');
+  clearFieldError('module-edit-name-field', 'module-edit-name-error');
 
-  const id = document.getElementById('village-edit-id').value;
-  const mandalId = document.getElementById('village-edit-mandal-select').value;
-  const name = document.getElementById('village-edit-name-input').value.trim();
+  const id = document.getElementById('module-edit-id').value;
+  const name = document.getElementById('module-edit-name-input').value.trim();
 
-  let hasError = false;
-  if (!mandalId) {
-    setFieldError('village-edit-mandal-field', 'village-edit-mandal-error', 'Please select a Mandal.');
-    hasError = true;
-  }
   if (!name) {
-    setFieldError('village-edit-name-field', 'village-edit-name-error', 'Village name is required.');
-    hasError = true;
+    setFieldError('module-edit-name-field', 'module-edit-name-error', 'Module name is required.');
+    return;
   }
-  if (hasError) return;
 
-  const btn = document.getElementById('village-edit-submit-btn');
+  const btn = document.getElementById('module-edit-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Updating…';
 
-  fetch(`/api/admin/villages/${id}`, {
+  fetch(`/api/admin/modules/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -634,44 +614,47 @@ function submitEditVillageForm(e) {
       'X-CSRF-TOKEN': csrfToken(),
       'X-Requested-With': 'XMLHttpRequest',
     },
-    body: JSON.stringify({ mandal_id: mandalId, name }),
+    body: JSON.stringify({ name, is_active: document.getElementById('module-edit-status-select').value === '1' }),
   })
   .then(async r => {
     const data = await r.json().catch(() => ({}));
 
     if (r.status === 422) {
-      if (data.errors?.mandal_id) setFieldError('village-edit-mandal-field', 'village-edit-mandal-error', data.errors.mandal_id[0]);
-      if (data.errors?.name)      setFieldError('village-edit-name-field', 'village-edit-name-error', data.errors.name[0]);
-      if (!data.errors) showToast(data.message || 'Validation failed.', true);
+      const msg = data.errors?.name?.[0] || data.message || 'Validation failed.';
+      setFieldError('module-edit-name-field', 'module-edit-name-error', msg);
       return;
     }
     if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to update village.', true);
+      showToast(data.message || 'Failed to update module.', true);
       return;
     }
 
-    showToast('✔ Village updated successfully.');
-    closeModal('village-edit-modal-overlay');
-    loadVillageData();
+    showToast('✔ Module updated successfully.');
+    closeModal('module-edit-modal-overlay');
+    loadModuleData();
   })
   .catch(() => showToast('Network error. Please try again.', true))
   .finally(() => {
     btn.disabled = false;
-    btn.textContent = 'Update Village';
+    btn.textContent = 'Update Module';
   });
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   DELETE VILLAGE
+   DELETE MODULE
 ══════════════════════════════════════════════════════════════════ */
 let pendingDelete = null;
 
 function openDeleteModal(id) {
-  const village = paginationState.allData.find(v => v.id === id);
-  if (!village) return;
+  const module = paginationState.allData.find(o => o.id === id);
+  if (!module) return;
   
-  pendingDelete = { type: 'village', id: id, name: village.name };
-  document.getElementById('delete-modal-message').textContent = `Are you sure you want to delete the village "${village.name}"? This action cannot be undone.`;
+  pendingDelete = { type: 'module', id: id, name: module.name };
+  const inUse = (module.disposals_count || 0) > 0;
+  document.getElementById('delete-modal-message').textContent = inUse
+    ? `"${module.name}" is used by ${module.disposals_count} disposal(s) and cannot be deleted. Mark it Inactive instead.`
+    : `Are you sure you want to delete the module "${module.name}"? This action cannot be undone.`;
+  document.getElementById('delete-confirm-btn').style.display = inUse ? 'none' : '';
   openModal('delete-modal-overlay');
 }
 
@@ -682,7 +665,7 @@ function confirmDelete() {
   btn.disabled = true;
   btn.textContent = 'Deleting…';
 
-  fetch(`/api/admin/villages/${pendingDelete.id}`, {
+  fetch(`/api/admin/modules/${pendingDelete.id}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
@@ -695,13 +678,13 @@ function confirmDelete() {
     const data = await r.json().catch(() => ({}));
 
     if (!r.ok || !data.success) {
-      showToast(data.message || 'Failed to delete village.', true);
+      showToast(data.message || 'Failed to delete module.', true);
       return;
     }
 
-    showToast('✔ Village deleted successfully.');
+    showToast('✔ Module deleted successfully.');
     closeModal('delete-modal-overlay');
-    loadVillageData();
+    loadModuleData();
   })
   .catch(() => showToast('Network error. Please try again.', true))
   .finally(() => {
@@ -709,6 +692,32 @@ function confirmDelete() {
     btn.textContent = 'Delete';
     pendingDelete = null;
   });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TOGGLE STATUS
+══════════════════════════════════════════════════════════════════ */
+function toggleModuleStatus(id) {
+  fetch(`/api/admin/modules/${id}/toggle-status`, {
+    method: 'PATCH',
+    headers: {
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfToken(),
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  })
+  .then(async r => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.success) {
+      showToast(data.message || 'Failed to change status.', true);
+      return;
+    }
+    const row = paginationState.allData.find(m => m.id === id);
+    if (row) row.is_active = data.is_active;
+    renderTable();
+    showToast('✔ ' + data.message);
+  })
+  .catch(() => showToast('Network error. Please try again.', true));
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -734,6 +743,12 @@ function clearFieldError(fieldId, errorId) {
 function setFieldError(fieldId, errorId, message) {
   document.getElementById(fieldId).classList.add('has-error');
   document.getElementById(errorId).textContent = message;
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '—';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-IN');
 }
 
 function escapeHtml(str) {

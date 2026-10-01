@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Mandal;
 use App\Models\User;
+use App\Models\UserDocumentPermission;
 use App\Models\Village;
 use App\Models\WorkingOffice;
 use Illuminate\Http\Request;
@@ -403,6 +404,14 @@ class AdminController extends Controller
             // Edit mandal permissions
             'edit_mandal_ids'       => ['nullable', 'array'],
             'edit_mandal_ids.*'     => ['integer', 'exists:mandals,id'],
+
+            // Bhu Bharathi Disposals — upload / view / edit mandal permissions
+            'bb_upload_mandal_ids'   => ['nullable', 'array'],
+            'bb_upload_mandal_ids.*' => ['integer', 'exists:mandals,id'],
+            'bb_view_mandal_ids'     => ['nullable', 'array'],
+            'bb_view_mandal_ids.*'   => ['integer', 'exists:mandals,id'],
+            'bb_edit_mandal_ids'     => ['nullable', 'array'],
+            'bb_edit_mandal_ids.*'   => ['integer', 'exists:mandals,id'],
         ], [
             'email.unique'                  => 'A user with this email already exists.',
             'working_office_id.required'    => 'Working office is required.',
@@ -414,6 +423,12 @@ class AdminController extends Controller
             'view_mandal_ids.*.exists'      => 'One or more view mandals do not exist.',
             'edit_mandal_ids.*.integer'     => 'Invalid mandal selected for edit permission.',
             'edit_mandal_ids.*.exists'      => 'One or more edit mandals do not exist.',
+            'bb_upload_mandal_ids.*.integer' => 'Invalid mandal selected for Bhu Bharathi upload permission.',
+            'bb_upload_mandal_ids.*.exists'  => 'One or more Bhu Bharathi upload mandals do not exist.',
+            'bb_view_mandal_ids.*.integer'   => 'Invalid mandal selected for Bhu Bharathi view permission.',
+            'bb_view_mandal_ids.*.exists'    => 'One or more Bhu Bharathi view mandals do not exist.',
+            'bb_edit_mandal_ids.*.integer'   => 'Invalid mandal selected for Bhu Bharathi edit permission.',
+            'bb_edit_mandal_ids.*.exists'    => 'One or more Bhu Bharathi edit mandals do not exist.',
         ]);
  
         DB::beginTransaction();
@@ -430,11 +445,16 @@ class AdminController extends Controller
             $user->save();
  
             // Update document permissions with ONLY mandal-specific permissions
+            // (Pahani + Bhu Bharathi live on the same UserDocumentPermission row)
             $permissions = $user->getOrCreateDocumentPermission();
             $permissions->update([
-                'upload_mandal_ids'  => array_values(array_filter($validated['upload_mandal_ids'] ?? [])),
-                'view_mandal_ids'    => array_values(array_filter($validated['view_mandal_ids'] ?? [])),
-                'edit_mandal_ids'    => array_values(array_filter($validated['edit_mandal_ids'] ?? [])),
+                'upload_mandal_ids'     => $this->cleanMandalIds($validated['upload_mandal_ids'] ?? []),
+                'view_mandal_ids'       => $this->cleanMandalIds($validated['view_mandal_ids'] ?? []),
+                'edit_mandal_ids'       => $this->cleanMandalIds($validated['edit_mandal_ids'] ?? []),
+
+                'bb_upload_mandal_ids'  => $this->cleanMandalIds($validated['bb_upload_mandal_ids'] ?? []),
+                'bb_view_mandal_ids'    => $this->cleanMandalIds($validated['bb_view_mandal_ids'] ?? []),
+                'bb_edit_mandal_ids'    => $this->cleanMandalIds($validated['bb_edit_mandal_ids'] ?? []),
             ]);
  
             DB::commit();
@@ -449,11 +469,7 @@ class AdminController extends Controller
                     'role'                => $user->role ?? 'User',
                     'working_office_id'   => $user->working_office_id,
                     'status'              => (int) $user->status,
-                    'permissions'         => [
-                        'upload_mandal_ids'  => $permissions->getUploadMandalIds(),
-                        'view_mandal_ids'    => $permissions->getViewMandalIds(),
-                        'edit_mandal_ids'    => $permissions->getEditMandalIds(),
-                    ],
+                    'permissions'         => $this->permissionPayload($permissions),
                 ],
             ]);
         } catch (\Exception $e) {
@@ -482,11 +498,7 @@ class AdminController extends Controller
                     'role'                => $user->role ?? 'User',
                     
                     // ✅ Include permissions data (THIS IS KEY!)
-                    'permissions'         => [
-                        'upload_mandal_ids'  => $user->documentPermission?->upload_mandal_ids ?? [],
-                        'view_mandal_ids'    => $user->documentPermission?->view_mandal_ids ?? [],
-                        'edit_mandal_ids'    => $user->documentPermission?->edit_mandal_ids ?? [],
-                    ],
+                    'permissions'         => $this->permissionPayload($user->documentPermission),
                     
                     // Include mandals for reference (if needed)
                     'mandals'             => $user->mandals->map(function ($mandal) {
@@ -624,12 +636,36 @@ class AdminController extends Controller
                 'role'                => $user->role ?? 'User',
                 'working_office_id'   => $user->working_office_id,
                 'status'              => (int) $user->status,
-                'permissions'         => [
-                    'upload_mandal_ids'  => $user->documentPermission?->upload_mandal_ids ?? [],
-                    'view_mandal_ids'    => $user->documentPermission?->view_mandal_ids ?? [],
-                    'edit_mandal_ids'    => $user->documentPermission?->edit_mandal_ids ?? [],
-                ],
+                'permissions'         => $this->permissionPayload($user->documentPermission),
             ],
         ]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       PERMISSION HELPERS
+    ══════════════════════════════════════════════════════════════ */
+
+    /**
+     * Mandal permissions sent to the admin "Edit User" modal.
+     * Pahani:       upload / view / edit_mandal_ids
+     * Bhu Bharathi: bb_upload / bb_view / bb_edit_mandal_ids
+     */
+    private function permissionPayload(?UserDocumentPermission $permissions): array
+    {
+        return [
+            'upload_mandal_ids'    => $permissions?->getUploadMandalIds() ?? [],
+            'view_mandal_ids'      => $permissions?->getViewMandalIds() ?? [],
+            'edit_mandal_ids'      => $permissions?->getEditMandalIds() ?? [],
+
+            'bb_upload_mandal_ids' => $permissions?->getBbUploadMandalIds() ?? [],
+            'bb_view_mandal_ids'   => $permissions?->getBbViewMandalIds() ?? [],
+            'bb_edit_mandal_ids'   => $permissions?->getBbEditMandalIds() ?? [],
+        ];
+    }
+
+    /** Unique, positive integer mandal IDs, re-indexed for clean JSON arrays. */
+    private function cleanMandalIds(array $ids): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $ids))));
     }
 }

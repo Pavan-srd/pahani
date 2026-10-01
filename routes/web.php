@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ModuleController;
+use App\Http\Controllers\BhuBharathiController;
 use App\Http\Controllers\PahaniController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +48,20 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/reports/user', [ReportsController::class, 'userReport'])->name('reports.user');
 
+    Route::prefix('bhu-bharathi')->name('bhu-bharathi.')->controller(BhuBharathiController::class)->group(function () {
+        Route::get('/',          'index')->name('index');
+        Route::get('/records',   'records')->name('records');
+        Route::post('/store',    'store')->name('store');
+        Route::put('/{bhuBharathi}',      'update')->name('update')->whereNumber('bhuBharathi');
+        Route::get('/{bhuBharathi}/file', 'showFile')->name('file')->whereNumber('bhuBharathi');
+
+        // direct-to-R2 parallel upload (same flow as Pahani)
+        Route::post('/presign',             'presign')->name('presign');
+        Route::post('/multipart/init',      'multipartInit')->name('multipart.init');
+        Route::post('/multipart/sign-part', 'multipartSignPart')->name('multipart.sign-part');
+        Route::post('/multipart/complete',  'multipartComplete')->name('multipart.complete');
+        Route::post('/multipart/abort',     'multipartAbort')->name('multipart.abort');
+    });
 });
 
 /*
@@ -158,6 +174,17 @@ Route::middleware(['is_admin'])->group(function () {
     });
 
     Route::get('/reports/admin', [ReportsController::class, 'adminReport'])->name('reports.admin');
+
+    // Page
+    Route::get('/admin/modules', [ModuleController::class, 'index'])->name('admin.modules.index');
+
+    // JSON API (same pattern as /api/admin/working-offices)
+    Route::get('/api/admin/modules',                         [ModuleController::class, 'list']);
+    Route::post('/api/admin/modules',                        [ModuleController::class, 'store']);
+    Route::get('/api/admin/modules/{module}',                [ModuleController::class, 'edit']);
+    Route::put('/api/admin/modules/{module}',                [ModuleController::class, 'update']);
+    Route::patch('/api/admin/modules/{module}/toggle-status',[ModuleController::class, 'toggleStatus']);
+    Route::delete('/api/admin/modules/{module}',             [ModuleController::class, 'destroy']);
 
 });
 

@@ -25,6 +25,11 @@ class UserDocumentPermission extends Model
         'upload_mandal_ids',
         'view_mandal_ids',
         'edit_mandal_ids',
+
+        // Bhu Bharathi Disposals
+        'bb_upload_mandal_ids',
+        'bb_view_mandal_ids',
+        'bb_edit_mandal_ids',
     ];
 
     /**
@@ -38,6 +43,11 @@ class UserDocumentPermission extends Model
         'upload_mandal_ids' => 'array',
         'view_mandal_ids' => 'array',
         'edit_mandal_ids' => 'array',
+
+        // Bhu Bharathi Disposals
+        'bb_upload_mandal_ids' => 'array',
+        'bb_view_mandal_ids'   => 'array',
+        'bb_edit_mandal_ids'   => 'array',
     ];
 
     /**
@@ -169,5 +179,64 @@ class UserDocumentPermission extends Model
     public function revokeViewPermission()
     {
         $this->update(['can_view' => false]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       BHU BHARATHI DISPOSALS — mandal permissions
+    ══════════════════════════════════════════════════════════════ */
+
+    /** Normalise a stored JSON list to unique integer IDs. */
+    private function normalizeIds($ids): array
+    {
+        if (is_string($ids)) {
+            $ids = json_decode($ids, true);
+        }
+
+        return is_array($ids) ? array_values(array_unique(array_map('intval', $ids))) : [];
+    }
+
+    public function getBbUploadMandalIds(): array
+    {
+        return $this->normalizeIds($this->bb_upload_mandal_ids);
+    }
+
+    public function getBbViewMandalIds(): array
+    {
+        return $this->normalizeIds($this->bb_view_mandal_ids);
+    }
+
+    public function getBbEditMandalIds(): array
+    {
+        return $this->normalizeIds($this->bb_edit_mandal_ids);
+    }
+
+    public function canBbUploadToMandal(int $mandalId): bool
+    {
+        return in_array($mandalId, $this->getBbUploadMandalIds(), true);
+    }
+
+    public function canBbViewMandal(int $mandalId): bool
+    {
+        return in_array($mandalId, $this->getBbViewMandalIds(), true);
+    }
+
+    public function canBbEditMandal(int $mandalId): bool
+    {
+        return in_array($mandalId, $this->getBbEditMandalIds(), true);
+    }
+
+    public function setBbUploadMandalIds(array $mandalIds = [])
+    {
+        $this->update(['bb_upload_mandal_ids' => array_values(array_filter($mandalIds))]);
+    }
+
+    public function setBbViewMandalIds(array $mandalIds = [])
+    {
+        $this->update(['bb_view_mandal_ids' => array_values(array_filter($mandalIds))]);
+    }
+
+    public function setBbEditMandalIds(array $mandalIds = [])
+    {
+        $this->update(['bb_edit_mandal_ids' => array_values(array_filter($mandalIds))]);
     }
 }

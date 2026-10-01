@@ -110,7 +110,7 @@
     /* ══ MODAL ══ */
     .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
     .modal-overlay.show{display:flex}
-    .modal-box{background:white;border-radius:4px;box-shadow:0 6px 24px rgba(0,0,0,0.18);width:100%;max-width:520px;overflow:hidden;animation:modalSlide 0.25s ease;margin:auto}
+    .modal-box{background:white;border-radius:4px;box-shadow:0 6px 24px rgba(0,0,0,0.18);width:100%;max-width:620px;overflow:hidden;animation:modalSlide 0.25s ease;margin:auto}
     @keyframes modalSlide{from{transform:translateY(-30px);opacity:0}}
 
     .modal-header{background:#eaf2f8;border-bottom:1px solid #b8d4e8;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
@@ -137,6 +137,9 @@
     .checkbox-item label{margin:0;font-weight:normal;font-size:11px;cursor:pointer}
 
     .section-divider{border-top:1px solid #d5e8f5;margin:12px 0;padding-top:12px}
+    .perm-group-title{background:#154360;color:white;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.4px;padding:7px 10px;border-left:4px solid #f39c12;border-radius:2px;margin:16px 0 10px}
+    .perm-group-title.bb{background:#1e6b52}
+    .select-all{font-size:9px;font-weight:normal;color:#1a6fa8;cursor:pointer;margin-left:8px;text-transform:none;text-decoration:underline}
 
     .btn-secondary-sm{background:#f0f4f8;color:#154360;border:1px solid #b0c4d8;padding:8px 16px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:2px;transition:background 0.15s}
     .btn-secondary-sm:hover{background:#eaf2f8}
@@ -169,6 +172,9 @@
         </a>
         <a class="sb-item" href="{{ route('admin.working-offices.index') }}">
           <span class="sb-icon">🏢</span> Working Office
+        </a>
+        <a class="sb-item" href="{{ route('admin.modules.index') }}">
+          <span class="sb-icon">🧩</span> Modules
         </a>
 
         <div class="nav-section-label">Access Control</div>
@@ -309,8 +315,10 @@
             </select>
           </div>
   
+          {{-- ═════════════ PAHANI PERMISSIONS ═════════════ --}}
+          <div class="perm-group-title">📑 Pahani Uploads — Mandal Permissions</div>
+
           {{-- ═══ UPLOAD MANDALS PERMISSION ═══ --}}
-          <div class="section-divider"></div>
           <div class="form-field" id="user-edit-upload-mandals-field">
             <label>📤 Upload Mandals</label>
             <div class="form-field-sub">Select mandals where user can upload documents</div>
@@ -340,6 +348,35 @@
               <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
             </div>
             <div class="field-error" id="user-edit-edit-mandals-error"></div>
+          </div>
+
+          {{-- ═════════════ BHU BHARATHI PERMISSIONS ═════════════ --}}
+          <div class="perm-group-title bb">🗂️ Bhu Bharathi Disposals — Mandal Permissions</div>
+
+          <div class="form-field" id="user-edit-bb-upload-mandals-field">
+            <label>📤 Upload Mandals <span class="select-all" onclick="toggleAll('bb_upload')">select all / none</span></label>
+            <div class="form-field-sub">Mandals where user can add Bhu Bharathi disposals</div>
+            <div class="checkbox-group" id="user-edit-bb-upload-mandals-list">
+              <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="form-field" id="user-edit-bb-view-mandals-field">
+            <label>👁 View Mandals <span class="select-all" onclick="toggleAll('bb_view')">select all / none</span></label>
+            <div class="form-field-sub">Mandals where user can view all Bhu Bharathi disposals &amp; PDFs</div>
+            <div class="checkbox-group" id="user-edit-bb-view-mandals-list">
+              <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="form-field" id="user-edit-bb-edit-mandals-field">
+            <label>✎ Edit Mandals <span class="select-all" onclick="toggleAll('bb_edit')">select all / none</span></label>
+            <div class="form-field-sub">Mandals where user can edit any Bhu Bharathi disposal (module, application no., PDF)</div>
+            <div class="checkbox-group" id="user-edit-bb-edit-mandals-list">
+              <div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>
+            </div>
           </div>
   
         </div>
@@ -531,88 +568,91 @@ function populateOfficesDropdown(selectId, selectedId = null) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   POPULATE MANDALS CHECKBOXES FOR 3 PERMISSION TYPES
+   POPULATE MANDALS CHECKBOXES
+   Pahani:       upload / view / edit
+   Bhu Bharathi: bb_upload / bb_view / bb_edit
+   Checkbox class = "mandal-<type>"  (e.g. mandal-upload, mandal-bb_view)
 ══════════════════════════════════════════════════════════════════ */
-function populateMandalsCheckboxes(permissionType, selectedMandals = []) {
-  let containerId;
-  
-  switch(permissionType) {
-    case 'upload':
-      containerId = 'user-edit-upload-mandals-list';
-      break;
-    case 'view':
-      containerId = 'user-edit-view-mandals-list';
-      break;
-    case 'edit':
-      containerId = 'user-edit-edit-mandals-list';
-      break;
-    default:
-      console.error(`Unknown permission type: ${permissionType}`);
-      return;
+const PERMISSION_CONTAINERS = {
+  upload:    'user-edit-upload-mandals-list',
+  view:      'user-edit-view-mandals-list',
+  edit:      'user-edit-edit-mandals-list',
+  bb_upload: 'user-edit-bb-upload-mandals-list',
+  bb_view:   'user-edit-bb-view-mandals-list',
+  bb_edit:   'user-edit-bb-edit-mandals-list',
+};
+
+// Mandals are fetched once and reused for all six checkbox groups
+let mandalsPromise = null;
+function fetchMandals() {
+  if (!mandalsPromise) {
+    mandalsPromise = fetch('/api/admin/mandals', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(m => Array.isArray(m) ? m : (m.data || []))
+      .catch(err => { mandalsPromise = null; throw err; });
   }
- 
+  return mandalsPromise;
+}
+
+function populateMandalsCheckboxes(permissionType, selectedMandals = []) {
+  const containerId = PERMISSION_CONTAINERS[permissionType];
+  if (!containerId) {
+    console.error(`Unknown permission type: ${permissionType}`);
+    return;
+  }
+
   const container = document.getElementById(containerId);
   if (!container) {
     console.error(`Container not found: ${containerId}`);
     return;
   }
-  
+
   container.innerHTML = '<div style="text-align:center; padding: 10px; color: #999;">Loading mandals…</div>';
- 
-  // Normalize selected mandals to ensure they're all integers
   const normalizedSelected = normalizeMandalIds(selectedMandals);
-  
-  console.log(`[${permissionType}] Loading mandals with pre-selected IDs:`, normalizedSelected);
- 
-  fetch('/api/admin/mandals', { 
-    headers: { 'X-Requested-With': 'XMLHttpRequest' } 
-  })
-  .then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-  })
-  .then(mandals => {
-    const data = Array.isArray(mandals) ? mandals : (mandals.data || []);
-    
-    if (data.length === 0) {
-      container.innerHTML = '<div style="text-align:center; padding: 10px; color: #999;">No mandals available</div>';
-      return;
-    }
- 
-    container.innerHTML = '';
-    let checkedCount = 0;
-    
-    data.forEach(m => {
-      const mandalId = parseInt(m.id, 10);
-      const isChecked = normalizedSelected.includes(mandalId);
-      if (isChecked) checkedCount++;
-      
-      const item = document.createElement('div');
-      item.className = 'checkbox-item';
-      
-      const fieldId = `mandal-${permissionType}-${mandalId}`;
-      const fieldClass = `mandal-${permissionType}`;
-      
-      item.innerHTML = `
-        <input type="checkbox" 
-               id="${fieldId}" 
-               class="${fieldClass}" 
-               value="${mandalId}" 
-               ${isChecked ? 'checked' : ''}>
-        <label for="${fieldId}">${escapeHtml(m.name)}</label>
-      `;
-      container.appendChild(item);
+
+  fetchMandals()
+    .then(data => {
+      if (data.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 10px; color: #999;">No mandals available</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      data.forEach(m => {
+        const mandalId = parseInt(m.id, 10);
+        const fieldId  = `mandal-${permissionType}-${mandalId}`;
+
+        const item = document.createElement('div');
+        item.className = 'checkbox-item';
+        item.innerHTML = `
+          <input type="checkbox"
+                 id="${fieldId}"
+                 class="mandal-${permissionType}"
+                 value="${mandalId}"
+                 ${normalizedSelected.includes(mandalId) ? 'checked' : ''}>
+          <label for="${fieldId}">${escapeHtml(m.name)}</label>
+        `;
+        container.appendChild(item);
+      });
+    })
+    .catch(err => {
+      console.error(`Failed to load ${permissionType} mandals:`, err);
+      container.innerHTML = '<div style="text-align:center; padding: 10px; color: #c0392b;">Failed to load mandals</div>';
+      showToast('Failed to load mandals for ' + permissionType + ' permission.', true);
     });
- 
-    console.log(`[${permissionType}] Pre-selected ${checkedCount} out of ${data.length} mandals`);
-  })
-  .catch(err => {
-    console.error(`Failed to load ${permissionType} mandals:`, err);
-    container.innerHTML = '<div style="text-align:center; padding: 10px; color: #c0392b;">Failed to load mandals</div>';
-    showToast('Failed to load mandals for ' + permissionType + ' permission.', true);
-  });
 }
- 
+
+function getCheckedMandals(permissionType) {
+  return Array.from(document.querySelectorAll(`input.mandal-${permissionType}:checked`))
+    .map(cb => parseInt(cb.value, 10));
+}
+
+function toggleAll(permissionType) {
+  const boxes = Array.from(document.querySelectorAll(`input.mandal-${permissionType}`));
+  const allChecked = boxes.length > 0 && boxes.every(b => b.checked);
+  boxes.forEach(b => b.checked = !allChecked);
+}
+
 /* ══════════════════════════════════════════════════════════════════
    OPEN EDIT USER MODAL
 ══════════════════════════════════════════════════════════════════ */
@@ -651,11 +691,17 @@ function openEditUserModal(id) {
     let uploadMandalIds = [];
     let viewMandalIds = [];
     let editMandalIds = [];
+    let bbUploadMandalIds = [];
+    let bbViewMandalIds = [];
+    let bbEditMandalIds = [];
     
     if (user.permissions) {
       uploadMandalIds = normalizeMandalIds(user.permissions.upload_mandal_ids);
       viewMandalIds = normalizeMandalIds(user.permissions.view_mandal_ids);
       editMandalIds = normalizeMandalIds(user.permissions.edit_mandal_ids);
+      bbUploadMandalIds = normalizeMandalIds(user.permissions.bb_upload_mandal_ids);
+      bbViewMandalIds = normalizeMandalIds(user.permissions.bb_view_mandal_ids);
+      bbEditMandalIds = normalizeMandalIds(user.permissions.bb_edit_mandal_ids);
     }
     
     console.log('Normalized permissions:', {
@@ -668,6 +714,9 @@ function openEditUserModal(id) {
     populateMandalsCheckboxes('upload', uploadMandalIds);
     populateMandalsCheckboxes('view', viewMandalIds);
     populateMandalsCheckboxes('edit', editMandalIds);
+    populateMandalsCheckboxes('bb_upload', bbUploadMandalIds);
+    populateMandalsCheckboxes('bb_view', bbViewMandalIds);
+    populateMandalsCheckboxes('bb_edit', bbEditMandalIds);
     
     // Clear any previous error messages
     clearFieldError('user-edit-name-field', 'user-edit-name-error');
@@ -722,6 +771,11 @@ function submitEditUserForm(e) {
   
   const editMandalIds = Array.from(document.querySelectorAll('input.mandal-edit:checked'))
     .map(checkbox => parseInt(checkbox.value, 10));
+
+  // Bhu Bharathi Disposals permissions
+  const bbUploadMandalIds = getCheckedMandals('bb_upload');
+  const bbViewMandalIds   = getCheckedMandals('bb_view');
+  const bbEditMandalIds   = getCheckedMandals('bb_edit');
  
   console.log('Form submission data:', {
     id,
@@ -772,6 +826,9 @@ function submitEditUserForm(e) {
       upload_mandal_ids: uploadMandalIds,
       view_mandal_ids: viewMandalIds,
       edit_mandal_ids: editMandalIds,
+      bb_upload_mandal_ids: bbUploadMandalIds,
+      bb_view_mandal_ids: bbViewMandalIds,
+      bb_edit_mandal_ids: bbEditMandalIds,
     }),
   })
   .then(async r => {
