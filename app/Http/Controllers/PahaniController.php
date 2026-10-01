@@ -22,6 +22,32 @@ class PahaniController extends Controller
     public function index()
     {
         $user = Auth::user();
+ 
+        /** @var \App\Models\UserDocumentPermission|null $perm */
+        $perm = $user?->documentPermission;
+ 
+        // Only count mandals that are still active
+        $activeIds = Mandal::where('is_active', true)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $count = fn (array $ids): int => count(array_intersect(array_map('intval', $ids), $activeIds));
+ 
+        $pahani = [
+            'upload' => $count($perm?->getUploadMandalIds() ?? []),
+            'view'   => $count($perm?->getViewMandalIds() ?? []),
+            'edit'   => $count($perm?->getEditMandalIds() ?? []),
+        ];
+ 
+        $bhuBharathi = [
+            'upload' => $count($perm?->getBbUploadMandalIds() ?? []),
+            'view'   => $count($perm?->getBbViewMandalIds() ?? []),
+            'edit'   => $count($perm?->getBbEditMandalIds() ?? []),
+        ];
+ 
+        return view('index', compact('user', 'pahani', 'bhuBharathi'));
+    }
+
+    public function pahaniIndex()
+    {
+        $user = Auth::user();
         $mandals = collect();
 
         if ($user) {
@@ -44,7 +70,7 @@ class PahaniController extends Controller
             ->orderBy('sort_order')
             ->get(['id', 'value', 'label', 'type', 'description']);
 
-        return view('index', compact('mandals', 'documents', 'user'));
+        return view('pahani', compact('mandals', 'documents', 'user'));
     }
 
     // ── STORE (form submit) ───────────────────────────────────────────────────

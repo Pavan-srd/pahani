@@ -202,7 +202,8 @@
   {{-- ── NAV ── --}}
   <div class="page-nav">
     <div class="nav-left">
-      <a class="nav-item" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
+      <a class="nav-item" href="{{ route('home') }}">🏠 Dashboard</a>
+      <a class="nav-item" href="{{ route('pahani.index') }}">📂 Pahani Upload</a>
       <a class="nav-item" href="{{ route('pahani.view') }}">📋 View Records</a>
       <a class="nav-item active" href="{{ route('bhu-bharathi.index') }}">🗂️ Bhu Bharathi Disposals</a>
       <a class="nav-item" href="{{ route('reports.user') }}">📊 Reports</a>
@@ -223,7 +224,7 @@
     </div>
 
     <div class="breadcrumb">
-      <a href="{{ route('pahani.index') }}">Home</a> › <a href="#">Revenue Records</a> › Bhu Bharathi Disposals
+      <a href="{{ route('home') }}">Home</a> › <a href="#">Revenue Records</a> › Bhu Bharathi Disposals
     </div>
 
     @if($modules->isEmpty())

@@ -9,10 +9,12 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\ReportsController;
 
+
 Route::get('/dashboard', [PahaniController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/', [PahaniController::class, 'index'])->name('pahani.index');
+    Route::get('/', [PahaniController::class, 'index'])->name('home');
+    Route::get('/pahani', [PahaniController::class, 'pahaniIndex'])->name('pahani.index');
 
     Route::get('/pahani/file/{pahani}', [PahaniController::class, 'showFile'])->name('pahani.file');
     Route::get('/pahani/view', [PahaniController::class, 'view'])->name('pahani.view');
