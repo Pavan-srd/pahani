@@ -24,8 +24,9 @@ use Illuminate\Validation\Rule;
  *   bb_upload_mandal_ids → can add new disposals in these mandals
  *   bb_view_mandal_ids   → can see all disposals (and open PDFs) in these mandals
  *   bb_edit_mandal_ids   → can edit any disposal in these mandals
- * An uploader can always see and edit their OWN disposals while they still
- * hold upload permission for that mandal (same "own record" rule as the Pahani page).
+ * The View (open PDF) and Edit buttons are strictly permission-based:
+ *   View is allowed only for mandals in bb_view_mandal_ids,
+ *   Edit is allowed only for mandals in bb_edit_mandal_ids.
  *
  * Files go browser → R2 directly (presigned PUT, or multipart for large files),
  * then only a small JSON payload is sent to store()/update().
@@ -462,21 +463,16 @@ class BhuBharathiController extends Controller
         return $this->hasPerm('upload', $mandalId) || $this->hasPerm('edit', $mandalId);
     }
 
-    private function isOwner(BhuBharathi $r): bool
-    {
-        return (int) $r->uploaded_by === (int) Auth::id();
-    }
-
+    /** View (open PDF) — only when admin gave Bhu Bharathi VIEW permission for the mandal. */
     private function canViewRecord(BhuBharathi $r): bool
     {
-        return $this->canViewMandal($r->mandal_id)
-            || ($this->isOwner($r) && $this->hasPerm('upload', $r->mandal_id));
+        return $this->hasPerm('view', (int) $r->mandal_id);
     }
 
+    /** Edit — only when admin gave Bhu Bharathi EDIT permission for the mandal. */
     private function canEditRecord(BhuBharathi $r): bool
     {
-        return $this->hasPerm('edit', $r->mandal_id)
-            || ($this->isOwner($r) && $this->hasPerm('upload', $r->mandal_id));
+        return $this->hasPerm('edit', (int) $r->mandal_id);
     }
 
     private function resolveLocation(string $mandalSlug, string $villageSlug): array
@@ -534,11 +530,13 @@ class BhuBharathiController extends Controller
             'file_name'          => $r->file_name,
             'file_size_human'    => $r->file_size_human,
             'has_file'           => (bool) $r->file_path,
-            'file_url'           => $r->file_path ? route('bhu-bharathi.file', $r) : null,
+            // URL only sent when the user may open it
+            'file_url'           => ($r->file_path && $this->canViewRecord($r)) ? route('bhu-bharathi.file', $r) : null,
             'uploaded_by'        => $r->uploaded_by,
             'uploader_name'      => $r->uploader?->name,
             'created_at'         => $r->created_at?->format('d-M-Y h:i A'),
             'updated_at'         => $r->updated_at?->format('d-M-Y h:i A'),
+            'can_view'           => $this->canViewRecord($r),
             'can_edit'           => $this->canEditRecord($r),
         ];
     }

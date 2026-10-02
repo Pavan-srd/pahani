@@ -114,6 +114,7 @@
     .btn-secondary:hover{background:#eaf2f8}
     .btn-link{display:inline-flex;align-items:center;gap:4px;border:1px solid #b8d4e8;background:#eaf2f8;color:#154360;padding:4px 9px;font-size:10px;font-weight:bold;border-radius:2px;cursor:pointer;text-decoration:none;white-space:nowrap}
     .btn-link:hover{background:#d6eaf8}
+    .btn-link:disabled,.btn-link.disabled{background:#f3f3f3;color:#aaa;border-color:#ddd;cursor:not-allowed}
     .lock-tag{font-size:10px;color:#856404;background:#fff3cd;border:1px solid #ffc107;padding:3px 7px;border-radius:2px;white-space:nowrap}
     .actions{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 
@@ -916,6 +917,17 @@ function loadSavedRecords() {
     .finally(() => loading.classList.remove('show'));
 }
 
+/** View button: enabled only with Bhu Bharathi VIEW permission (and a saved PDF). */
+function viewButton(r) {
+  if (!r.has_file) {
+    return '<button type="button" class="btn-link" disabled title="No PDF uploaded">👁 View</button>';
+  }
+  if (!r.can_view || !r.file_url) {
+    return '<button type="button" class="btn-link" disabled title="No Bhu Bharathi view permission for this mandal">👁 View</button>';
+  }
+  return `<a class="btn-link" href="${r.file_url}" target="_blank" rel="noopener">👁 View</a>`;
+}
+
 function renderSaved() {
   const tbody = document.getElementById('saved-tbody');
   if (!state.saved.length) {
@@ -933,10 +945,10 @@ function renderSaved() {
       <td>${escapeHtml(r.uploader_name || '—')}<div class="muted">${escapeHtml(r.updated_at || r.created_at || '')}</div></td>
       <td>
         <div class="actions">
-          ${r.file_url ? `<a class="btn-link" href="${r.file_url}" target="_blank" rel="noopener">👁 View</a>` : ''}
+          ${viewButton(r)}
           ${r.can_edit
             ? `<button type="button" class="btn-link" onclick="openEditModal(${r.id})">✎ Edit</button>`
-            : '<span class="lock-tag">🔒 Locked</span>'}
+            : '<button type="button" class="btn-link" disabled title="No Bhu Bharathi edit permission for this mandal">✎ Edit</button>'}
         </div>
       </td>
     </tr>`).join('');
@@ -949,7 +961,7 @@ const editState = { record: null, file: null, busy: false };
 
 function openEditModal(id) {
   const rec = state.saved.find(r => r.id === id);
-  if (!rec) return;
+  if (!rec || !rec.can_edit) return;
   editState.record = rec; editState.file = null; editState.busy = false;
 
   document.getElementById('edit-title-id').textContent = '#' + rec.id;
