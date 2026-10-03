@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Pahani Management — Admin Dashboard — Land Record Digitalization</title>
+  <title>Bhu Bharathi Disposals — Admin Dashboard — Land Record Digitalization</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;background:#f0f4f8;color:#1a1a2e}
@@ -108,6 +108,12 @@
       .pdf-table{font-size:10px}
       .pdf-table th,.pdf-table td{padding:6px 8px}
     }
+  
+    /* ── BHU BHARATHI EXTRAS ── */
+    .app-no{font-family:Consolas,monospace;font-weight:bold;color:#1a1a2e}
+    .mod-tag{display:inline-block;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:bold}
+    .btn-icon-small.disabled{opacity:0.45;cursor:not-allowed;pointer-events:none}
+    .muted{font-size:10px;color:#888}
   </style>
 </head>
 <body>
@@ -130,7 +136,7 @@
   {{-- ── NAV ── --}}
   <div class="admin-nav">
     <a class="nav-item" href="{{ route('admin.dashboard') }}">← Back to Dashboard</a>
-    <a class="nav-item active" href="#">Pahani Files</a>
+    <a class="nav-item" href="{{ route('admin.pahani-management.index') }}">Pahani Files</a>
     <a class="nav-item active" href="{{ route('admin.bhu-bharathi-management.index') }}">Bhu Bharathi Files</a>
   </div>
 
@@ -138,8 +144,8 @@
   <div class="main-body">
 
     <div class="page-heading">
-      <h2>📋 Pahani Files Management</h2>
-      <div style="font-size:10px;color:#666">Total: {{ $pahanis->total() }} PDF(s)</div>
+      <h2>🗂️ Bhu Bharathi Disposals — Uploaded Files</h2>
+      <div style="font-size:10px;color:#666">Total: {{ $records->total() }} PDF(s)</div>
     </div>
 
     {{-- ── ALERTS ── --}}
@@ -155,7 +161,7 @@
       <form method="GET" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;flex:1">
         <div class="filter-group">
           <label>Search User</label>
-          <input type="text" name="search_user" placeholder="User name..." value="{{ request('search_user') }}" style="min-width:150px">
+          <input type="text" name="search_user" placeholder="User name..." value="{{ request('search_user') }}" style="min-width:140px">
         </div>
         <div class="filter-group">
           <label>Mandal</label>
@@ -175,53 +181,75 @@
           </select>
         </div>
         <div class="filter-group">
-          <label>Document</label>
-          <select name="pahani_document_id" id="pahani_document_id" style="min-width:160px">
-            <option value="">All Documents</option>
+          <label>Module</label>
+          <select name="module_id" id="module_id" style="min-width:150px">
+            <option value="">All Modules</option>
+            @foreach($modules as $module)
+              <option value="{{ $module->id }}" {{ request('module_id') == $module->id ? 'selected' : '' }}>
+                {{ $module->name }}{{ $module->is_active ? '' : ' (inactive)' }}
+              </option>
+            @endforeach
           </select>
         </div>
+        <div class="filter-group">
+          <label>File / Application No.</label>
+          <input type="text" name="application_number" placeholder="Application number..." value="{{ request('application_number') }}" style="min-width:150px">
+        </div>
         <button type="submit" class="btn btn-primary">Search</button>
-        <a href="{{ route('admin.pahani-management.index') }}" class="btn btn-secondary">Reset</a>
-        <a href="{{ route('admin.pahani-management.export', request()->query()) }}" class="btn btn-secondary">📥 Export CSV</a>
+        <a href="{{ route('admin.bhu-bharathi-management.index') }}" class="btn btn-secondary">Reset</a>
       </form>
     </div>
 
     {{-- ── TABLE ── --}}
-    @if($pahanis->count() > 0)
-      <div class="table-wrap">
+    @if($records->count() > 0)
+      <div class="table-wrap" style="overflow-x:auto">
         <table class="pdf-table">
           <thead>
             <tr>
-              <th style="width:140px">User</th>
-              <th style="width:100px">Mandal</th>
-              <th style="width:100px">Village</th>
-              <th style="width:150px">Document</th>
-              <th style="width:140px">File Name</th>
+              <th style="width:40px">#</th>
+              <th style="width:150px">User</th>
+              <th style="width:110px">Mandal</th>
+              <th style="width:110px">Village</th>
+              <th style="width:140px">Module</th>
+              <th style="width:130px">File / Application No.</th>
+              <th style="width:150px">File Name</th>
               <th style="width:70px">Size</th>
-              <th style="width:110px">Uploaded</th>
-              <th style="width:70px;text-align:center">Actions</th>
+              <th style="width:100px">Uploaded</th>
+              <th style="width:60px;text-align:center">View</th>
             </tr>
           </thead>
           <tbody>
-            @foreach($pahanis as $pahani)
+            @foreach($records as $record)
               <tr>
+                <td>{{ $records->firstItem() + $loop->index }}</td>
                 <td>
-                  <strong>{{ $pahani->user?->name ?? '—' }}</strong><br>
-                  <span style="font-size:10px;color:#888">{{ $pahani->user?->email ?? '—' }}</span>
+                  <strong>{{ $record->uploader?->name ?? '—' }}</strong><br>
+                  <span class="muted">{{ $record->uploader?->email ?? '—' }}</span>
                 </td>
-                <td>{{ $pahani->mandal?->name ?? '—' }}</td>
-                <td>{{ $pahani->village?->name ?? '—' }}</td>
-                <td>{{ $pahani->document_name ?? '—' }}</td>
+                <td>{{ $record->mandal?->name ?? '—' }}</td>
+                <td>{{ $record->village?->name ?? '—' }}</td>
+                <td><span class="mod-tag">{{ $record->moduleMaster?->name ?? $record->module ?? '—' }}</span></td>
+                <td><span class="app-no">{{ $record->application_number }}</span></td>
                 <td>
-                  <a href="{{ route('pahani.pdf-source', $pahani->id) }}" target="_blank" title="View PDF">
-                    📄 {{ Str::limit($pahani->file_name ?? '—', 20, '...') }}
-                  </a>
+                  @if($record->file_path)
+                    <a href="{{ route('admin.bhu-bharathi-management.file', $record->id) }}" target="_blank" rel="noopener" title="{{ $record->file_name }}">
+                      📄 {{ Str::limit($record->file_name ?? 'document.pdf', 20, '...') }}
+                    </a>
+                  @else
+                    <span class="muted">No file</span>
+                  @endif
                 </td>
-                <td>{{ $pahani->file_size_human ?? '—' }}</td>
-                <td style="font-size:10px">{{ $pahani->created_at?->format('M d, Y') ?? '—' }}</td>
+                <td>{{ $record->file_size_human ?? '—' }}</td>
+                <td style="font-size:10px">
+                  {{ $record->created_at?->format('M d, Y') ?? '—' }}<br>
+                  <span class="muted">{{ $record->created_at?->format('h:i A') }}</span>
+                </td>
                 <td style="text-align:center">
-                  <a href="{{ route('pahani.pdf-source', $pahani->id) }}" target="_blank" class="btn-icon-small" title="View">👁</a>
-                  <button class="btn-icon-small danger" onclick="deletePahani({{ $pahani->id }})" title="Delete">✕</button>
+                  @if($record->file_path)
+                    <a href="{{ route('admin.bhu-bharathi-management.file', $record->id) }}" target="_blank" rel="noopener" class="btn-icon-small" title="View PDF" style="text-decoration:none">👁</a>
+                  @else
+                    <span class="btn-icon-small disabled" title="No PDF uploaded">👁</span>
+                  @endif
                 </td>
               </tr>
             @endforeach
@@ -230,20 +258,20 @@
       </div>
 
       {{-- ── PAGINATION ── --}}
-      @if($pahanis->hasPages())
+      @if($records->hasPages())
       <div style="margin-top:16px">
         <div class="pagination">
           {{-- Previous Page Link --}}
-          @if($pahanis->onFirstPage())
+          @if($records->onFirstPage())
             <span class="disabled" aria-disabled="true" rel="prev">← Previous</span>
           @else
-            <a href="{{ $pahanis->previousPageUrl() }}" rel="prev">← Previous</a>
+            <a href="{{ $records->previousPageUrl() }}" rel="prev">← Previous</a>
           @endif
 
           {{-- Pagination Elements (windowed: 1 ... current-2..current+2 ... last) --}}
           @php
-            $current = $pahanis->currentPage();
-            $last = $pahanis->lastPage();
+            $current = $records->currentPage();
+            $last = $records->lastPage();
             $onEachSide = 2;
 
             $pages = [1];
@@ -270,13 +298,13 @@
             @elseif($page == $current)
               <span class="active" aria-current="page">{{ $page }}</span>
             @else
-              <a href="{{ $pahanis->url($page) }}">{{ $page }}</a>
+              <a href="{{ $records->url($page) }}">{{ $page }}</a>
             @endif
           @endforeach
 
           {{-- Next Page Link --}}
-          @if($pahanis->hasMorePages())
-            <a href="{{ $pahanis->nextPageUrl() }}" rel="next">Next →</a>
+          @if($records->hasMorePages())
+            <a href="{{ $records->nextPageUrl() }}" rel="next">Next →</a>
           @else
             <span class="disabled" aria-disabled="true" rel="next">Next →</span>
           @endif
@@ -286,44 +314,22 @@
 
     @else
       <div class="empty-state">
-        <div class="es-icon">📋</div>
-        <div>No PDF records found.</div>
+        <div class="es-icon">🗂️</div>
+        <div>No Bhu Bharathi disposals found.</div>
       </div>
     @endif
 
   </div>
 
-  {{-- ── DELETE MODAL ── --}}
-  <div class="modal-overlay" id="delete-modal">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Delete PDF</h3>
-      </div>
-      <div class="modal-body">
-        <p>Are you sure you want to delete this PDF? This action cannot be undone.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-        <button type="button" class="btn btn-danger" onclick="confirmDelete()">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  {{-- ── TOAST ── --}}
-  <div class="toast" id="toast"></div>
-
   <script>
-    // ── CASCADING FILTER DROPDOWNS (Mandal -> Village -> Document) ──
+    // ── CASCADING FILTER: Mandal -> Village ──
     const villagesData = @json($villages->map(fn($v) => ['id' => $v->id, 'name' => $v->name, 'mandal_id' => $v->mandal_id]));
-    const documentsData = @json($documents->map(fn($d) => ['id' => $d->id, 'name' => $d->label]));
 
-    const selectedMandalId = '{{ request('mandal_id') }}';
-    const selectedVillageId = '{{ request('village_id') }}';
-    const selectedDocumentId = '{{ request('pahani_document_id') }}';
+    const selectedMandalId  = @json((string) request('mandal_id', ''));
+    const selectedVillageId = @json((string) request('village_id', ''));
 
-    const mandalSelect = document.getElementById('mandal_id');
+    const mandalSelect  = document.getElementById('mandal_id');
     const villageSelect = document.getElementById('village_id');
-    const documentSelect = document.getElementById('pahani_document_id');
 
     function populateVillages(mandalId, keepSelectedId) {
       villageSelect.innerHTML = '<option value="">All Villages</option>';
@@ -339,82 +345,12 @@
       });
     }
 
-    function populateDocuments(keepSelectedId) {
-      documentSelect.innerHTML = '<option value="">All Documents</option>';
-      documentsData.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.id;
-        opt.textContent = d.name;
-        if (keepSelectedId && String(d.id) === String(keepSelectedId)) opt.selected = true;
-        documentSelect.appendChild(opt);
-      });
-    }
-
-    // Initial population, preserving any selection from the current query string
+    // Initial population, keeping selection from the query string
     populateVillages(selectedMandalId, selectedVillageId);
-    populateDocuments(selectedDocumentId);
 
-    // Mandal changed -> reload villages for that mandal, reset village & document choice
+    // Mandal changed -> show only that mandal's villages
     mandalSelect.addEventListener('change', function () {
       populateVillages(this.value, null);
-      documentSelect.value = '';
-    });
-
-    // Village changed -> (re)populate the document list
-    villageSelect.addEventListener('change', function () {
-      populateDocuments(null);
-    });
-
-    let pendingDeleteId = null;
-
-    function deletePahani(id) {
-      pendingDeleteId = id;
-      document.getElementById('delete-modal').classList.add('show');
-    }
-
-    function closeDeleteModal() {
-      document.getElementById('delete-modal').classList.remove('show');
-      pendingDeleteId = null;
-    }
-
-    function confirmDelete() {
-      if (!pendingDeleteId) return;
-
-      const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-
-      fetch(`/admin/pahani-management/${pendingDeleteId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': csrfToken,
-        }
-      })
-      .then(r => r.json())
-      .then(data => {
-        closeDeleteModal();
-        if (data.success) {
-          showToast('✔ ' + data.message);
-          setTimeout(() => location.reload(), 1200);
-        } else {
-          showToast(data.message || 'Delete failed.', true);
-        }
-      })
-      .catch(() => {
-        showToast('Network error. Please try again.', true);
-        closeDeleteModal();
-      });
-    }
-
-    function showToast(msg, isError = false) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.className = 'toast show' + (isError ? ' error' : '');
-      setTimeout(() => t.classList.remove('show'), 3500);
-    }
-
-    // Close modal on overlay click
-    document.getElementById('delete-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'delete-modal') closeDeleteModal();
     });
   </script>
 

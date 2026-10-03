@@ -188,6 +188,13 @@ Route::middleware(['is_admin'])->group(function () {
     Route::patch('/api/admin/modules/{module}/toggle-status',[ModuleController::class, 'toggleStatus']);
     Route::delete('/api/admin/modules/{module}',             [ModuleController::class, 'destroy']);
 
+    Route::prefix('admin/bhu-bharathi-management')
+    ->name('admin.bhu-bharathi-management.')
+    ->controller(BhuBharathiController::class)
+    ->group(function () {
+        Route::get('/', 'adminIndex')->name('index');
+        Route::get('/{bhuBharathi}/file', 'file')->name('file')->whereNumber('bhuBharathi');
+    });
 });
 
 require __DIR__.'/auth.php';

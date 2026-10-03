@@ -172,6 +172,9 @@
         <a class="sb-item" href="{{ route('admin.pahani-management.index') }}">
           <span class="sb-icon">👤</span> Pahani Management
         </a>
+        <a class="sb-item" href="{{ route('admin.bhu-bharathi-management.index') }}">
+          <span class="sb-icon">👤</span> Bhu Bharathi Management
+        </a>
         <a class="sb-item" href="{{ route('reports.admin') }}">
           <span class="sb-icon">👤</span> Summary 
         </a>

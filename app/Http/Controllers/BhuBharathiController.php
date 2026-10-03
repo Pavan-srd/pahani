@@ -553,4 +553,53 @@ class BhuBharathiController extends Controller
             'use_path_style_endpoint' => $c['use_path_style_endpoint'] ?? false,
         ]);
     }
+
+    public function adminIndex(Request $request)
+    {
+        $records = BhuBharathi::query()
+            ->with([
+                'uploader:id,name,email',
+                'mandal:id,name',
+                'village:id,name',
+                'moduleMaster:id,name',
+            ])
+            ->when($request->filled('search_user'), function ($q) use ($request) {
+                $q->whereHas('uploader', fn ($u) => $u->where('name', 'like', '%' . $request->search_user . '%'));
+            })
+            ->when($request->filled('mandal_id'), fn ($q) => $q->where('mandal_id', (int) $request->mandal_id))
+            ->when($request->filled('village_id'), fn ($q) => $q->where('village_id', (int) $request->village_id))
+            ->when($request->filled('module_id'), fn ($q) => $q->where('module_id', (int) $request->module_id))
+            ->when($request->filled('application_number'), function ($q) use ($request) {
+                $q->where('application_number', 'like', '%' . trim($request->application_number) . '%');
+            })
+            ->latest()
+            ->paginate(25)
+            ->withQueryString();
+ 
+        $mandals  = Mandal::orderBy('name')->get(['id', 'name']);
+        $villages = Village::orderBy('name')->get(['id', 'name', 'mandal_id']);
+        $modules  = Module::orderBy('name')->get(['id', 'name', 'is_active']);
+ 
+        return view('admin.bhu-bharathi-management.index', compact('records', 'mandals', 'villages', 'modules'));
+    }
+ 
+    /** Open the PDF (admin is allowed to view every disposal). */
+    public function file(BhuBharathi $bhuBharathi)
+    {
+        abort_if(!$bhuBharathi->file_path, 404, 'No file uploaded for this record.');
+ 
+        $disk = $bhuBharathi->disk ?: 'r2';
+        abort_unless(Storage::disk($disk)->exists($bhuBharathi->file_path), 404, 'File not found in storage.');
+ 
+        $url = Storage::disk($disk)->temporaryUrl(
+            $bhuBharathi->file_path,
+            Carbon::now()->addMinutes(10),
+            [
+                'ResponseContentType'        => 'application/pdf',
+                'ResponseContentDisposition' => 'inline',
+            ]
+        );
+ 
+        return redirect($url);
+    }
 }
