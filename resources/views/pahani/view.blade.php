@@ -159,7 +159,7 @@
   </div>
 
   {{-- ── NAV ── --}}
-  @include('partials.user-nav', ['active' => 'pahani-upload'])   {{-- in pahani.blade.php --}}
+  @include('partials.user-nav', ['active' => 'pahani-view'])   {{-- in pahani.blade.php --}}
 
 
   <div class="main-body">

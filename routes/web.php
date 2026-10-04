@@ -63,6 +63,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/multipart/sign-part', 'multipartSignPart')->name('multipart.sign-part');
         Route::post('/multipart/complete',  'multipartComplete')->name('multipart.complete');
         Route::post('/multipart/abort',     'multipartAbort')->name('multipart.abort');
+
+        Route::get('/my-files', 'myFiles')->name('my-files');
     });
 });
 
@@ -197,7 +199,7 @@ Route::middleware(['is_admin'])->group(function () {
     });
 
     Route::get('/admin/users/{user}/edit', [AdminController::class, 'editUserPage'])->name('admin.users.edit');
-    
+
 });
 
 require __DIR__.'/auth.php';
