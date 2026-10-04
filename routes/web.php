@@ -56,7 +56,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/store',    'store')->name('store');
         Route::put('/{bhuBharathi}',      'update')->name('update')->whereNumber('bhuBharathi');
         Route::get('/{bhuBharathi}/file', 'showFile')->name('file')->whereNumber('bhuBharathi');
-
+        Route::get('/check',     'check')->name('check'); 
         // direct-to-R2 parallel upload (same flow as Pahani)
         Route::post('/presign',             'presign')->name('presign');
         Route::post('/multipart/init',      'multipartInit')->name('multipart.init');
