@@ -65,6 +65,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/multipart/abort',     'multipartAbort')->name('multipart.abort');
 
         Route::get('/my-files', 'myFiles')->name('my-files');
+        Route::get('/{bhuBharathi}/view-pdf', 'viewPdfPage')
+            ->name('view-pdf')
+            ->whereNumber('bhuBharathi')
+            ->middleware('throttle:100,60'); 
     });
 });
 

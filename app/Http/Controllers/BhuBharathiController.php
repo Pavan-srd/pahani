@@ -39,6 +39,7 @@ class BhuBharathiController extends Controller
     private const DISK     = 'r2';
     private const KEY_ROOT = 'bhu-bharathi';
     private const MIME     = 'application/pdf';
+    private const MAX_ROWS = 100;   // disposals per submission
 
     private ?array $permCache = null;
     private ?array $moduleCache = null;
@@ -139,62 +140,90 @@ class BhuBharathiController extends Controller
         ]);
     }
 
-    // ── STORE (new disposals, bulk) ──────────────────────────────────────────
+    // ── STORE (bulk: every row has its own mandal / village / module) ──────────
     /**
      * JSON payload:
      * {
-     *   mandal:  "sangareddy",
-     *   village: "kandi",
      *   records: [
-     *     { module_id, application_number, r2Key, fileName, fileSize }, ...
+     *     { mandal_id, village_id, module_id, application_number, r2Key, fileName, fileSize }, ...
      *   ]
      * }
+     * Each row = one PDF = one record.
+     * Application number must be unique per mandal + village + module.
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'mandal'  => ['required', 'string', 'exists:mandals,slug'],
-            'village' => ['required', 'string'],
-            'records' => ['required', 'array', 'min:1', 'max:100'],
+            'records'   => ['required', 'array', 'min:1', 'max:' . self::MAX_ROWS],
+            'records.*' => ['array'],
+        ], [
+            'records.required' => 'Add at least one disposal record.',
+            'records.max'      => 'You can submit at most ' . self::MAX_ROWS . ' disposals at a time.',
         ]);
 
-        [$mandal, $village] = $this->resolveLocation($data['mandal'], $data['village']);
+        $rows = array_values($data['records']);
 
-        if (!$this->hasPerm('upload', $mandal->id)) {
-            return response()->json(['success' => false, 'message' => 'You do not have upload permission for this mandal.'], 403);
-        }
+        // Load every mandal / village used in this submission in two queries
+        $ids = fn (string $field) => collect($rows)->pluck($field)->map(fn ($v) => (int) $v)->filter()->unique()->values();
 
-        $prefix   = $this->keyPrefix($mandal, $village);
-        $modules  = $this->allowedModules();                 // [id => name] — admin-permitted, active
-        $errors   = [];
-        $cleaned  = [];
-        $seenApp  = [];
-        $seenKeys = [];
+        $mandals  = Mandal::whereIn('id', $ids('mandal_id'))->where('is_active', true)
+            ->get(['id', 'name', 'slug'])->keyBy('id');
+        $villages = Village::whereIn('id', $ids('village_id'))->where('is_active', true)
+            ->get(['id', 'name', 'slug', 'mandal_id'])->keyBy('id');
+        $modules  = $this->allowedModules();               // [id => name] — admin-permitted, active
 
-        foreach ($data['records'] as $i => $row) {
-            $n      = $i + 1;
-            $moduleId = (int) ($row['module_id'] ?? 0);
-            $appNo  = trim((string) ($row['application_number'] ?? ''));
-            $key    = (string) ($row['r2Key'] ?? '');
+        $errors    = [];
+        $cleaned   = [];
+        $seenCombo = [];
+        $seenKeys  = [];
+
+        foreach ($rows as $i => $row) {
+            $n         = $i + 1;
+            $mandalId  = (int) ($row['mandal_id'] ?? 0);
+            $villageId = (int) ($row['village_id'] ?? 0);
+            $moduleId  = (int) ($row['module_id'] ?? 0);
+            $appNo     = trim((string) ($row['application_number'] ?? ''));
+            $key       = (string) ($row['r2Key'] ?? '');
+            $mandal    = $mandals->get($mandalId);
+            $village   = $villages->get($villageId);
+
+            if (!$mandal) {
+                $errors[] = "Row {$n}: Please select a valid mandal.";
+            } elseif (!$this->hasPerm('upload', $mandal->id)) {
+                $errors[] = "Row {$n}: You do not have upload permission for {$mandal->name} mandal.";
+            }
+
+            if (!$village || ($mandal && (int) $village->mandal_id !== (int) $mandal->id)) {
+                $errors[] = "Row {$n}: Please select a valid village of the selected mandal.";
+            }
 
             if (!$moduleId) {
                 $errors[] = "Row {$n}: Please select a module.";
             } elseif (!$modules->has($moduleId)) {
                 $errors[] = "Row {$n}: You do not have permission to upload for the selected module.";
             }
+
             if ($appNo === '' || mb_strlen($appNo) > 100) {
                 $errors[] = "Row {$n}: Application number is required (max 100 characters).";
-            } elseif (isset($seenApp[mb_strtolower($appNo)])) {
-                $errors[] = "Row {$n}: Application number {$appNo} is repeated in this submission.";
-            }
-            if ($key === '' || isset($seenKeys[$key]) || !$this->isValidKey($key, $prefix)) {
-                $errors[] = "Row {$n}: Uploaded PDF could not be verified. Please re-select the file.";
+            } else {
+                $combo = $this->comboKey($mandalId, $villageId, $moduleId, $appNo);
+                if (isset($seenCombo[$combo])) {
+                    $errors[] = "Row {$n}: Same mandal, village, module and application number as row {$seenCombo[$combo]}.";
+                } else {
+                    $seenCombo[$combo] = $n;
+                }
             }
 
-            $seenApp[mb_strtolower($appNo)] = true;
+            $prefix = ($mandal && $village) ? $this->keyPrefix($mandal, $village) : null;
+            if ($key === '' || isset($seenKeys[$key]) || !$prefix || !$this->isValidKey($key, $prefix)) {
+                $errors[] = "Row {$n}: Uploaded PDF could not be verified. Please re-select the file.";
+            }
             $seenKeys[$key] = true;
 
             $cleaned[] = [
+                'row'                => $n,
+                'mandal_id'          => $mandalId,
+                'village_id'         => $villageId,
                 'module_id'          => $moduleId ?: null,
                 'module'             => $modules->get($moduleId),
                 'application_number' => $appNo,
@@ -205,12 +234,7 @@ class BhuBharathiController extends Controller
         }
 
         if (empty($errors)) {
-            // Application numbers already registered (soft-deleted rows ignored by the global scope)
-            $taken = BhuBharathi::whereIn('application_number', array_column($cleaned, 'application_number'))
-                ->pluck('application_number')->all();
-            foreach ($taken as $t) {
-                $errors[] = "Application number {$t} already exists.";
-            }
+            $errors = $this->duplicateErrors($cleaned);
 
             if (BhuBharathi::withTrashed()->whereIn('file_path', array_column($cleaned, 'file_path'))->exists()) {
                 $errors[] = 'One of the uploaded files is already linked to another record. Please re-select the file.';
@@ -223,10 +247,18 @@ class BhuBharathiController extends Controller
 
         DB::beginTransaction();
         try {
+            // Lock the mandal rows so two people submitting the same combination at the
+            // same moment are processed one after the other, then re-check duplicates.
+            Mandal::whereIn('id', array_unique(array_column($cleaned, 'mandal_id')))->lockForUpdate()->get(['id']);
+
+            if ($dupes = $this->duplicateErrors($cleaned)) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Please fix the errors below.', 'errors' => $dupes], 422);
+            }
+
             foreach ($cleaned as $row) {
+                unset($row['row']);
                 BhuBharathi::create($row + [
-                    'mandal_id'   => $mandal->id,
-                    'village_id'  => $village->id,
                     'file_mime'   => self::MIME,
                     'disk'        => self::DISK,
                     'uploaded_by' => Auth::id(),
@@ -240,9 +272,44 @@ class BhuBharathiController extends Controller
             return response()->json(['success' => false, 'message' => 'Submission failed. Please try again.'], 500);
         }
 
+        $villageCount = count(array_unique(array_column($cleaned, 'village_id')));
+        $mandalCount  = count(array_unique(array_column($cleaned, 'mandal_id')));
+
         return response()->json([
             'success' => true,
-            'message' => count($cleaned) . " Bhu Bharathi disposal(s) saved for {$village->name}, {$mandal->name}.",
+            'message' => count($cleaned) . " Bhu Bharathi disposal(s) saved across {$villageCount} village(s) in {$mandalCount} mandal(s).",
+        ]);
+    }
+
+    // ── CHECK: is this mandal + village + module + application no. already uploaded? ──
+    /**
+     * Used by the upload page to disable the PDF upload for a row that already exists.
+     * GET ?mandal_id=&village_id=&module_id=&application_number=
+     */
+    public function check(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'mandal_id'          => ['required', 'integer'],
+            'village_id'         => ['required', 'integer'],
+            'module_id'          => ['required', 'integer'],
+            'application_number' => ['required', 'string', 'max:100'],
+        ]);
+
+        if (!$this->hasPerm('upload', (int) $data['mandal_id'])) {
+            return response()->json(['success' => false, 'message' => 'You do not have upload permission for this mandal.'], 403);
+        }
+
+        $record = BhuBharathi::with(['uploader:id,name', 'mandal:id,name,slug', 'village:id,name,slug', 'moduleMaster:id,name'])
+            ->where('mandal_id', (int) $data['mandal_id'])
+            ->where('village_id', (int) $data['village_id'])
+            ->where('module_id', (int) $data['module_id'])
+            ->where('application_number', trim($data['application_number']))
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'exists'  => (bool) $record,
+            'record'  => $record ? $this->present($record) : null,
         ]);
     }
 
@@ -274,15 +341,20 @@ class BhuBharathiController extends Controller
             ],
             'application_number' => [
                 'required', 'string', 'max:100',
+                // unique per mandal + village + module (record's own mandal/village, chosen module)
                 Rule::unique('bhu_bharathis', 'application_number')
                     ->ignore($bhuBharathi->id)
-                    ->whereNull('deleted_at'),
+                    ->where(fn ($q) => $q
+                        ->where('mandal_id', $bhuBharathi->mandal_id)
+                        ->where('village_id', $bhuBharathi->village_id)
+                        ->where('module_id', (int) $request->input('module_id'))
+                        ->whereNull('deleted_at')),
             ],
             'r2Key'    => ['nullable', 'string', 'max:500'],
             'fileName' => ['required_with:r2Key', 'nullable', 'string', 'max:255'],
             'fileSize' => ['required_with:r2Key', 'nullable', 'integer', 'min:1'],
         ], [
-            'application_number.unique' => 'This application number already exists.',
+            'application_number.unique' => 'This application number already exists for this mandal, village and module.',
             'module_id.required'        => 'Please select a module.',
         ]);
 
@@ -343,24 +415,36 @@ class BhuBharathiController extends Controller
     }
 
     // ── OPEN PDF ─────────────────────────────────────────────────────────────
+    /**
+     * Old "open PDF" link. Never hands out the raw R2 URL any more —
+     * it simply sends the user to the secure in-app viewer.
+     */
     public function showFile(BhuBharathi $bhuBharathi)
-    {   
-        abort_unless($this->canViewRecord($bhuBharathi), 403, 'You do not have permission to view this file.');
+    {
+        return redirect()->route('bhu-bharathi.view-pdf', $bhuBharathi);
+    }
+
+    // ── SECURE PDF VIEWER (same protections as Pahani viewPdfPage) ───────────
+    public function viewPdfPage(BhuBharathi $bhuBharathi)
+    {
+        // ── Check 1: Document has file path ──
         abort_if(!$bhuBharathi->file_path, 404, 'No file uploaded for this record.');
 
-        $disk = $bhuBharathi->disk ?: self::DISK;
-        abort_unless(Storage::disk($disk)->exists($bhuBharathi->file_path), 404, 'File not found in storage.');
+        // ── Check 2: User has Bhu Bharathi VIEW permission for this mandal ──
+        if (!$this->canViewRecord($bhuBharathi)) {
+            Log::warning('Bhu Bharathi PDF view denied', [
+                'user_id'         => Auth::id(),
+                'bhu_bharathi_id' => $bhuBharathi->id,
+                'ip'              => request()->ip(),
+            ]);
+            abort(403, 'You do not have permission to view this file.');
+        }
 
-        $url = Storage::disk($disk)->temporaryUrl(
-            $bhuBharathi->file_path,
-            Carbon::now()->addMinutes(10),
-            [
-                'ResponseContentType'        => self::MIME,
-                'ResponseContentDisposition' => 'inline',
-            ]
+        return $this->securePdfView(
+            $bhuBharathi,
+            $this->safeBackUrl(route('bhu-bharathi.my-files')),
+            'user'
         );
-
-        return redirect($url);
     }
 
     // ── DIRECT-TO-R2 UPLOAD: single PUT ──────────────────────────────────────
@@ -541,6 +625,123 @@ class BhuBharathiController extends Controller
             : Module::active()->whereIn('id', $ids)->orderBy('name')->pluck('name', 'id');
     }
 
+    /** Case-insensitive key for the mandal + village + module + application number combination. */
+    private function comboKey(int $mandalId, int $villageId, int $moduleId, string $appNo): string
+    {
+        return "{$mandalId}|{$villageId}|{$moduleId}|" . mb_strtolower(trim($appNo));
+    }
+
+    /**
+     * "Row N: ... already uploaded" for every row whose combination is already saved.
+     * Soft-deleted records are ignored (SoftDeletes global scope).
+     */
+    private function duplicateErrors(array $rows): array
+    {
+        if (empty($rows)) {
+            return [];
+        }
+
+        $existing = BhuBharathi::where(function ($q) use ($rows) {
+                foreach ($rows as $r) {
+                    $q->orWhere(fn ($qq) => $qq
+                        ->where('mandal_id', $r['mandal_id'])
+                        ->where('village_id', $r['village_id'])
+                        ->where('module_id', $r['module_id'])
+                        ->where('application_number', $r['application_number']));
+                }
+            })
+            ->get(['mandal_id', 'village_id', 'module_id', 'application_number'])
+            ->mapWithKeys(fn ($e) => [$this->comboKey((int) $e->mandal_id, (int) $e->village_id, (int) $e->module_id, $e->application_number) => true]);
+
+        $errors = [];
+        foreach ($rows as $r) {
+            if ($existing->has($this->comboKey((int) $r['mandal_id'], (int) $r['village_id'], (int) $r['module_id'], $r['application_number']))) {
+                $errors[] = "Row {$r['row']}: Application number {$r['application_number']} is already uploaded for this mandal, village and module.";
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Shared by the user and admin viewers:
+     *  Check 3 — file exists in R2,
+     *  Check 4 — short-lived signed URL (PDF.js loads it straight from R2),
+     *  audit log + no-cache / no-frame response headers.
+     */
+    private function securePdfView(BhuBharathi $bb, string $backUrl, string $context)
+    {
+        $disk = $bb->disk ?: self::DISK;
+
+        // ── Check 3: File exists in R2 ──
+        if (!Storage::disk($disk)->exists($bb->file_path)) {
+            Log::error('Bhu Bharathi PDF not found in R2', [
+                'bhu_bharathi_id' => $bb->id,
+                'file_path'       => $bb->file_path,
+            ]);
+            abort(404, 'File not found in storage.');
+        }
+
+        // ── Check 4: Generate secure signed URL ──
+        $minutes = (int) config('filesystems.disks.r2.signed_url_expires', 60);
+        try {
+            $signedUrl = Storage::disk($disk)->temporaryUrl(
+                $bb->file_path,
+                Carbon::now()->addMinutes($minutes),
+                ['ResponseContentType' => self::MIME]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Bhu Bharathi: failed to generate signed URL', [
+                'user_id'         => Auth::id(),
+                'bhu_bharathi_id' => $bb->id,
+                'error'           => $e->getMessage(),
+            ]);
+            abort(500, 'Unable to generate secure URL');
+        }
+
+        $bb->loadMissing(['mandal:id,name', 'village:id,name', 'moduleMaster:id,name']);
+        $user = Auth::user();
+
+        // ── Audit trail ──
+        Log::info('Bhu Bharathi PDF viewed', [
+            'context'            => $context,
+            'user_id'            => $user?->id,
+            'user_email'         => $user?->email,
+            'bhu_bharathi_id'    => $bb->id,
+            'application_number' => $bb->application_number,
+            'ip'                 => request()->ip(),
+            'user_agent'         => substr((string) request()->userAgent(), 0, 255),
+        ]);
+
+        return response()
+            ->view('bhu-bharathi.pdf-viewer', [
+                'record'         => $bb,
+                'pdfSourceUrl'   => $signedUrl,
+                'backUrl'        => $backUrl,
+                'expiresMinutes' => $minutes,
+                // Visible watermark on every page: who viewed it, from where, when
+                'watermark'      => trim(($user?->name ?? 'User') . ' · ' . ($user?->email ?? '') . ' · ' . request()->ip()
+                                    . ' · ' . now()->format('d-M-Y h:i A')),
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0')
+            ->header('X-Frame-Options', 'DENY')
+            ->header('X-Content-Type-Options', 'nosniff')
+            ->header('Referrer-Policy', 'no-referrer');
+    }
+
+    /** Previous page if it is on this site (and not the viewer itself), otherwise $fallback. */
+    private function safeBackUrl(string $fallback): string
+    {
+        $prev = url()->previous();
+        $sameHost = parse_url($prev, PHP_URL_HOST) === request()->getHost();
+
+        return ($sameHost && $prev !== url()->current() && !str_contains($prev, '/view-pdf'))
+            ? $prev
+            : $fallback;
+    }
+
     private function resolveLocation(string $mandalSlug, string $villageSlug): array
     {
         $mandal = Mandal::where('slug', $mandalSlug)->where('is_active', true)->firstOrFail();
@@ -602,7 +803,7 @@ class BhuBharathiController extends Controller
             'file_size_human'    => $r->file_size_human,
             'has_file'           => (bool) $r->file_path,
             // URL only sent when the user may open it
-            'file_url'           => ($r->file_path && $this->canViewRecord($r)) ? route('bhu-bharathi.file', $r) : null,
+            'file_url'           => ($r->file_path && $this->canViewRecord($r)) ? route('bhu-bharathi.view-pdf', $r) : null,
             'uploaded_by'        => $r->uploaded_by,
             'uploader_name'      => $r->uploader?->name,
             'created_at'         => $r->created_at?->format('d-M-Y h:i A'),
@@ -658,23 +859,15 @@ class BhuBharathiController extends Controller
         return view('admin.bhu-bharathi-management.index', compact('records', 'mandals', 'villages', 'modules'));
     }
  
-    /** Open the PDF (admin is allowed to view every disposal). */
+    /** Open the PDF in the secure viewer (admin may view every disposal; route is in the is_admin group). */
     public function file(BhuBharathi $bhuBharathi)
     {
         abort_if(!$bhuBharathi->file_path, 404, 'No file uploaded for this record.');
- 
-        $disk = $bhuBharathi->disk ?: 'r2';
-        abort_unless(Storage::disk($disk)->exists($bhuBharathi->file_path), 404, 'File not found in storage.');
- 
-        $url = Storage::disk($disk)->temporaryUrl(
-            $bhuBharathi->file_path,
-            Carbon::now()->addMinutes(10),
-            [
-                'ResponseContentType'        => 'application/pdf',
-                'ResponseContentDisposition' => 'inline',
-            ]
+
+        return $this->securePdfView(
+            $bhuBharathi,
+            $this->safeBackUrl(route('admin.bhu-bharathi-management.index')),
+            'admin'
         );
- 
-        return redirect($url);
     }
 }

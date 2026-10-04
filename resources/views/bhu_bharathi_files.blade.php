@@ -573,7 +573,8 @@ function viewButton(r) {
   if (!r.can_view || !r.file_url) {
     return '<button type="button" class="btn-link" disabled title="No Bhu Bharathi view permission for this mandal">👁 View</button>';
   }
-  return `<a class="btn-link" href="${r.file_url}" target="_blank" rel="noopener">👁 View</a>`;
+  // Opens the secure in-app viewer (same tab; its Back button returns here)
+  return `<a class="btn-link" target="_blank" href="${r.file_url}">👁 View</a>`;
 }
 
 function openEditModal(id) {

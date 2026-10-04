@@ -32,7 +32,7 @@
     .logout-btn:hover{background:#bb2d3b}
 
     /* ── LAYOUT ── */
-    .main-body{padding:16px 20px;max-width:1040px;margin:0 auto}
+    .main-body{padding:16px 20px;max-width:1280px;margin:0 auto}
     .page-heading{background:white;border:1px solid #d5e8f5;border-left:4px solid #154360;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .page-heading h2{font-size:13px;font-weight:bold;color:#154360;text-transform:uppercase;letter-spacing:0.5px}
     .breadcrumb{font-size:10px;color:#666;margin-bottom:10px;display:flex;align-items:center;gap:4px}
@@ -159,6 +159,27 @@
       .upload-progress-rows{grid-template-columns:1fr}
       .gov-title-block .dept-name{font-size:14px}
     }
+  
+    /* ── BULK ROWS ── */
+    .bulk-table td{vertical-align:top}
+    .bulk-table select,.bulk-table input.txt{min-width:130px}
+    .bulk-table td.num{font-weight:bold;color:#154360;padding-top:12px}
+    .bulk-table td.upcell{min-width:230px}
+    .row-actions{display:flex;flex-direction:column;align-items:center;gap:6px}
+    .btn-copy{border:1px solid #b8d4e8;background:#eaf2f8;color:#154360;cursor:pointer;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:2px;white-space:nowrap}
+    .btn-copy:hover{background:#d6eaf8}
+    .upload-zone.disabled{background:#f3f3f3;border-color:#c5c5c5;cursor:not-allowed;opacity:0.65}
+    .upload-zone.disabled input[type=file]{cursor:not-allowed}
+    .upload-zone.disabled .uz-icon,.upload-zone.disabled .uz-text{color:#888}
+    .row-status{margin-top:5px;font-size:10px;line-height:1.4;padding:4px 7px;border-radius:2px;display:none}
+    .row-status.show{display:block}
+    .row-status.st-checking{background:#f0f8ff;color:#154360;border:1px solid #b8d4e8}
+    .row-status.st-exists{background:#e3f2fd;color:#0d47a1;border:1px solid #90caf9}
+    .row-status.st-dup{background:#fff3cd;color:#7d6608;border:1px solid #ffc107}
+    .row-status.st-warn{background:#fdecea;color:#7f0000;border:1px solid #f5c6cb}
+    .row-status a{color:#0d47a1;font-weight:bold}
+    tr.row-exists td{background:#f5f9ff !important}
+    .mini-spin{display:inline-block;width:9px;height:9px;border:2px solid #b8d4e8;border-top-color:#154360;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:-1px;margin-right:4px}
   </style>
 </head>
 <body>
@@ -196,7 +217,7 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      BHU BHARATHI DISPOSALS — Sangareddy District ({{ auth()->user()?->name }}, {{ auth()->user()?->getMandal?->name }})
+      BHU BHARATHI DISPOSALS — BULK UPLOAD — Sangareddy District ({{ auth()->user()?->name }}, {{ auth()->user()?->getMandal?->name }})
     </div>
   </div>
 
@@ -227,62 +248,35 @@
     @endif
 
     <div class="notice-bar">
-      ℹ️&nbsp;<span>Select Mandal &amp; Village, then add one row per application — select the <strong>Module</strong>, enter the <strong>Application Number</strong> and attach the <strong>PDF</strong>. All PDFs upload in parallel when you submit.</span>
+      ℹ️&nbsp;<span>Add one row per PDF. Each row has its own <strong>Mandal</strong>, <strong>Village</strong>, <strong>Module</strong> and <strong>Application Number</strong>, so one submission can cover many mandals and villages.
+      If that combination is already uploaded, the PDF upload for the row is disabled. All PDFs upload in parallel when you submit.</span>
     </div>
 
-    {{-- ── SECTION 1: MANDAL & VILLAGE ── --}}
+    {{-- ── UPLOAD BHU BHARATHI DISPOSALS ── --}}
     <div class="section-card">
       <div class="section-header">
-        <span class="sec-num">1</span> Revenue Mandal &amp; Village Details
-      </div>
-      <div class="section-body">
-        <div class="form-row">
-          <div class="field-group">
-            <label class="field-label" for="mandal-select">Name of Mandal <span class="req">*</span></label>
-            <div class="field-hint">Only mandals with Bhu Bharathi upload permission are listed</div>
-            <select id="mandal-select" onchange="onMandalChange()" {{ $mandals->isEmpty() ? 'disabled' : '' }}>
-              <option value="">— Select Mandal —</option>
-              @foreach($mandals as $mandal)
-                <option value="{{ $mandal->slug }}" data-id="{{ $mandal->id }}">{{ $mandal->name }}</option>
-              @endforeach
-            </select>
-            <div class="perm-chips" id="perm-chips"></div>
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="village-select">Name of Village <span class="req">*</span></label>
-            <div class="field-hint">Select village within the Mandal</div>
-            <select id="village-select" disabled onchange="onVillageChange()">
-              <option value="">— First Select Mandal —</option>
-            </select>
-            <div class="loading-bar" id="village-loading"><div class="spinner"></div> Loading villages…</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {{-- ── SECTION 2: NEW DISPOSALS ── --}}
-    <div class="section-card" id="new-section" style="display:none">
-      <div class="section-header">
-        <span class="sec-num">2</span> New Disposal Records
-        <span class="sec-right">PDF only</span>
+        <span class="sec-num">1</span> Upload Bhu Bharathi Disposals
+        <span class="sec-right">PDF only · max <span id="max-rows"></span> rows per submission</span>
       </div>
       <div class="section-body">
         <div id="js-error-anchor"></div>
         <div class="table-wrap">
-          <table class="doc-table">
+          <table class="doc-table bulk-table">
             <thead>
               <tr>
-                <th style="width:5%">#</th>
-                <th style="width:26%">Module <span style="color:#c0392b">*</span></th>
-                <th style="width:24%">Application Number <span style="color:#c0392b">*</span></th>
+                <th style="width:3%">#</th>
+                <th>Mandal <span style="color:#c0392b">*</span></th>
+                <th>Village <span style="color:#c0392b">*</span></th>
+                <th>Module <span style="color:#c0392b">*</span></th>
+                <th>Application No. <span style="color:#c0392b">*</span></th>
                 <th>Upload PDF <span style="color:#c0392b">*</span></th>
-                <th style="width:7%;text-align:center">Action</th>
+                <th style="width:6%;text-align:center">Action</th>
               </tr>
             </thead>
             <tbody id="new-tbody"></tbody>
           </table>
         </div>
-        <button type="button" class="add-row-btn" id="add-row-btn" onclick="addRow()">+ Add Disposal Record</button>
+        <button type="button" class="add-row-btn" id="add-row-btn" onclick="addRow()">+ New Disposal Record</button>
         <div class="row-info" id="row-info"></div>
       </div>
 
@@ -295,11 +289,6 @@
       </div>
     </div>
 
-    <div class="info-box" id="no-upload-box" style="display:none;margin-bottom:14px">
-      🔒 You do not have upload permission for this mandal.
-      <a href="{{ route('bhu-bharathi.my-files') }}" style="color:#154360;font-weight:bold">View your uploaded disposals →</a>
-    </div>
-
   </div>{{-- /main-body --}}
 </div>{{-- /portal-wrap --}}
 
@@ -308,13 +297,13 @@
 /* ══════════════════════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════════════════════ */
-const CURRENT_USER_ID = {{ (int) auth()->id() }};
-const PERMS = @json($permissions);   // { upload:[ids], view:[ids], edit:[ids] }
+const MANDALS = @json($mandals->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'slug' => $m->slug])->values());  // upload-permitted
 const MODULES = @json($modules);     // [{ id, name }] — active modules the admin allowed this user to upload
 
 const ROUTES = {
   myFiles:   @json(route('bhu-bharathi.my-files')),
   store:     @json(route('bhu-bharathi.store')),
+  check:     @json(route('bhu-bharathi.check')),
   presign:   @json(route('bhu-bharathi.presign')),
   mpInit:    @json(route('bhu-bharathi.multipart.init')),
   mpSign:    @json(route('bhu-bharathi.multipart.sign-part')),
@@ -322,29 +311,34 @@ const ROUTES = {
   mpAbort:   @json(route('bhu-bharathi.multipart.abort')),
 };
 
+const MAX_ROWS             = 100;               // same limit as BhuBharathiController::MAX_ROWS
+const CHECK_DELAY_MS       = 450;               // wait after typing before checking the server
 const PART_SIZE            = 10 * 1024 * 1024;  // 10MB per part
 const MULTIPART_THRESHOLD  = 20 * 1024 * 1024;  // above this, use multipart
 const MAX_CONCURRENT_PARTS = 4;
 
 /* ══════════════════════════════════════════════════════════════════
    STATE
+   row = { id, mandalId, mandalSlug, villageId, villageSlug, moduleId, appNo,
+           file, r2Key, exists, checking, checkFailed, checkSeq, checkTimer, el }
 ══════════════════════════════════════════════════════════════════ */
-const state = {
-  mandal:  null,   // { id, slug, name }
-  village: null,   // { id, slug, name }
-  rows:    [],     // { id, moduleId, appNo, file, r2Key, progress }
-};
+const state = { rows: [] };
 let rowSeq = 0;
+const villageCache = new Map();   // mandalId -> Promise<[{id, name, slug}]>
 
 /* ══════════════════════════════════════════════════════════════════
-   GENERIC HELPERS
+   HELPERS + DIRECT-TO-R2 UPLOAD (unchanged)
 ══════════════════════════════════════════════════════════════════ */
 function csrfToken() { return document.querySelector('meta[name=csrf-token]').content; }
-function can(type) { return !!state.mandal && PERMS[type].map(Number).includes(Number(state.mandal.id)); }
+
 function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
 function getFileExt(file) { return (file.name.split('.').pop() || '').toLowerCase(); }
+
 function isPdf(file) { return getFileExt(file) === 'pdf'; }
+
 function shortName(n) { return n.length > 34 ? n.slice(0, 31) + '…' : n; }
+
 function humanSize(b) {
   if (!b) return '';
   const u = ['B','KB','MB','GB']; let i = 0;
@@ -375,29 +369,6 @@ async function postJson(url, body, method = 'POST') {
   return { res, data };
 }
 
-/**
- * Fill a <select> with the modules this user may upload.
- * `extra` lets the edit modal keep the record's current module even when it
- * is not in the user's list (not permitted, or deactivated).
- */
-function fillModuleSelect(sel, selectedId, extra = null) {
-  sel.innerHTML = '<option value="">— Select Module —</option>';
-  const list = [...MODULES];
-  if (extra && extra.id && !list.some(m => m.id === extra.id)) {
-    list.push({ id: extra.id, name: extra.name + ' (current)' });
-  }
-  list.forEach(m => {
-    const o = document.createElement('option');
-    o.value = m.id;
-    o.textContent = m.name;
-    if (Number(selectedId) === Number(m.id)) o.selected = true;
-    sel.appendChild(o);
-  });
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   DIRECT-TO-R2 UPLOAD (single PUT or multipart) — same flow as Pahani
-══════════════════════════════════════════════════════════════════ */
 function putWithProgress(url, blob, headers, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -460,198 +431,6 @@ function uploadPdf(mandal, village, file, onProgress) {
     : uploadSingle(mandal, village, file, onProgress);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   MANDAL / VILLAGE
-══════════════════════════════════════════════════════════════════ */
-function onMandalChange() {
-  const sel = document.getElementById('mandal-select');
-  const opt = sel.options[sel.selectedIndex];
-  const villageSel = document.getElementById('village-select');
-
-  state.mandal  = opt?.dataset?.id ? { id: Number(opt.dataset.id), slug: opt.value, name: opt.textContent.trim() } : null;
-  state.village = null;
-  villageSel.innerHTML = '<option value="">— Select Village —</option>';
-  villageSel.disabled = true;
-  clearRows();
-  hideSections();
-  renderPermChips();
-
-  if (!state.mandal) return;
-
-  document.getElementById('village-loading').classList.add('show');
-  fetch(`/api/mandals/${state.mandal.id}/villages`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(r => r.json())
-    .then(villages => {
-      villages.forEach(v => {
-        const o = document.createElement('option');
-        o.value = v.slug; o.textContent = v.name; o.dataset.id = v.id;
-        villageSel.appendChild(o);
-      });
-      villageSel.disabled = false;
-    })
-    .catch(() => showToast('Failed to load villages. Please refresh.', true))
-    .finally(() => document.getElementById('village-loading').classList.remove('show'));
-}
-
-function onVillageChange() {
-  const sel = document.getElementById('village-select');
-  const opt = sel.options[sel.selectedIndex];
-  state.village = opt?.dataset?.id ? { id: Number(opt.dataset.id), slug: opt.value, name: opt.textContent.trim() } : null;
-
-  clearRows();
-  hideSections();
-  if (!state.village) return;
-
-  if (can('upload')) {
-    document.getElementById('new-section').style.display = 'block';
-    document.getElementById('add-row-btn').disabled = MODULES.length === 0;
-    document.getElementById('submit-btn').disabled  = MODULES.length === 0;
-    addRow();
-  } else {
-    document.getElementById('no-upload-box').style.display = 'block';
-  }
-}
-
-function renderPermChips() {
-  const box = document.getElementById('perm-chips');
-  if (!state.mandal) { box.innerHTML = ''; return; }
-  box.innerHTML = [['upload','📤 Upload'], ['view','👁 View'], ['edit','✎ Edit']]
-    .map(([t, l]) => `<span class="chip ${can(t) ? 'on' : 'off'}">${l}</span>`).join('');
-}
-
-function hideSections() {
-  ['new-section', 'no-upload-box'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById('js-error-box')?.remove();
-  document.getElementById('js-success-box')?.remove();
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   NEW ROWS
-══════════════════════════════════════════════════════════════════ */
-function clearRows() { state.rows = []; renderRows(); }
-
-function addRow() {
-  state.rows.push({ id: 'r' + (++rowSeq), moduleId: '', appNo: '', file: null, r2Key: null, progress: 0 });
-  renderRows();
-  const last = state.rows[state.rows.length - 1];
-  document.getElementById('module-' + last.id)?.focus();
-}
-
-function removeRow(id) {
-  state.rows = state.rows.filter(r => r.id !== id);
-  if (state.rows.length === 0) addRow(); else renderRows();
-}
-
-function setRowFile(row, file) {
-  row.file = file;
-  row.r2Key = null;     // a new file always needs a fresh upload
-  row.progress = 0;
-}
-
-function renderRows() {
-  const tbody = document.getElementById('new-tbody');
-  tbody.innerHTML = '';
-
-  state.rows.forEach((row, idx) => {
-    const tr = document.createElement('tr');
-
-    // # 
-    const tdNo = document.createElement('td');
-    tdNo.textContent = idx + 1;
-
-    // Module
-    const tdMod = document.createElement('td');
-    const mod = document.createElement('select');
-    mod.id = 'module-' + row.id;
-    fillModuleSelect(mod, row.moduleId);
-    mod.addEventListener('change', () => { row.moduleId = mod.value; mod.classList.remove('invalid'); });
-    tdMod.appendChild(mod);
-
-    // Application number
-    const tdApp = document.createElement('td');
-    const app = document.createElement('input');
-    app.type = 'text'; app.className = 'txt'; app.id = 'appno-' + row.id;
-    app.maxLength = 100; app.placeholder = 'Enter application number'; app.value = row.appNo;
-    app.addEventListener('input', () => { row.appNo = app.value; app.classList.remove('invalid'); });
-    tdApp.appendChild(app);
-
-    // Upload PDF
-    const tdUp = document.createElement('td');
-    tdUp.appendChild(buildUploadWidget({
-      progressId: row.id,
-      currentFile: () => row.file,
-      onPick: f => setRowFile(row, f),
-      onClear: () => setRowFile(row, null),
-    }));
-
-    // Action
-    const tdAct = document.createElement('td');
-    tdAct.style.textAlign = 'center';
-    const del = document.createElement('button');
-    del.type = 'button'; del.className = 'btn-danger-sm'; del.title = 'Remove row'; del.innerHTML = '✕';
-    del.onclick = () => removeRow(row.id);
-    tdAct.appendChild(del);
-
-    tr.append(tdNo, tdMod, tdApp, tdUp, tdAct);
-    tbody.appendChild(tr);
-  });
-
-  document.getElementById('row-info').textContent =
-    `${state.rows.length} new record(s) | ${state.rows.filter(r => r.file).length} PDF(s) attached`;
-}
-
-/**
- * Upload zone + selected-file tag + inline progress bar.
- * Used by the new-rows table and the edit modal.
- */
-function buildUploadWidget({ progressId, currentFile, onPick, onClear, replaceLabel }) {
-  const wrap = document.createElement('div');
-
-  const zone = document.createElement('div');
-  zone.className = 'upload-zone';
-  zone.innerHTML = `<input type="file" accept=".pdf,application/pdf">
-    <div class="uz-icon">📄</div>
-    <div class="uz-text">${replaceLabel || 'Click to upload PDF'}</div>`;
-  const fi = zone.querySelector('input');
-  wrap.appendChild(zone);
-
-  const showTag = (file) => {
-    wrap.querySelector('.uploaded-file')?.remove();
-    if (!file) return;
-    const tag = document.createElement('div');
-    tag.className = 'uploaded-file';
-    tag.innerHTML = `📄 ${escapeHtml(shortName(file.name))} <span class="muted">(${humanSize(file.size)})</span>
-      <button type="button" class="remove-btn" title="Remove">✕</button>`;
-    tag.querySelector('.remove-btn').onclick = () => { onClear(); fi.value = ''; showTag(null); refreshInfo(); };
-    zone.after(tag);
-  };
-
-  fi.addEventListener('change', () => {
-    const f = fi.files[0];
-    if (!f) return;
-    if (!isPdf(f)) { showToast('Only PDF files are allowed.', true); fi.value = ''; return; }
-    onPick(f);
-    showTag(f);
-    refreshInfo();
-  });
-
-  const prog = document.createElement('div');
-  prog.className = 'row-progress'; prog.id = 'progress-wrap-' + progressId;
-  prog.innerHTML = `<div class="bar" id="progress-bar-${progressId}"></div><span class="txt" id="progress-text-${progressId}">0%</span>`;
-  wrap.appendChild(prog);
-
-  if (currentFile()) showTag(currentFile());
-  return wrap;
-}
-
-function refreshInfo() {
-  const info = document.getElementById('row-info');
-  if (info) info.textContent = `${state.rows.length} new record(s) | ${state.rows.filter(r => r.file).length} PDF(s) attached`;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   PROGRESS UI
-══════════════════════════════════════════════════════════════════ */
 function showUploadProgress(items, label = 'Uploading Files…') {
   document.getElementById('upload-progress-label').textContent = label;
   document.getElementById('upload-progress-rows-container').innerHTML = items.map(it => `
@@ -686,27 +465,6 @@ function updateRowProgress(id, pct, failed = false) {
   if (p) p.textContent = failed ? '✕' : Math.round(pct);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   VALIDATION
-══════════════════════════════════════════════════════════════════ */
-function validateRows() {
-  const errors = [];
-  const seen = new Map();
-
-  state.rows.forEach((row, i) => {
-    const n = i + 1;
-    const app = row.appNo.trim();
-    const appKey = app.toLowerCase();
-
-    if (!row.moduleId) { errors.push(`Row ${n}: Please select a module.`); markInvalid('module-' + row.id); }
-    if (!app) { errors.push(`Row ${n}: Application number is required.`); markInvalid('appno-' + row.id); }
-    else if (seen.has(appKey)) { errors.push(`Row ${n}: Application number "${app}" is repeated in row ${seen.get(appKey)}.`); markInvalid('appno-' + row.id); }
-    if (app) seen.set(appKey, n);
-    if (!row.file && !row.r2Key) errors.push(`Row ${n}: Please upload the PDF.`);
-  });
-  return errors;
-}
-
 function markInvalid(id) { document.getElementById(id)?.classList.add('invalid'); }
 
 function renderFormErrors(errors) {
@@ -723,96 +481,6 @@ function renderFormErrors(errors) {
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   SUBMIT — parallel PDF uploads to R2, then one small JSON request
-══════════════════════════════════════════════════════════════════ */
-async function submitForm() {
-  if (!state.mandal || !state.village) { showToast('Please select both Mandal and Village.', true); return; }
-  if (state.rows.length === 0) { showToast('Add at least one disposal record.', true); return; }
-
-  document.getElementById('js-error-box')?.remove();
-  const errors = validateRows();
-  if (errors.length) { renderFormErrors(errors); return; }
-
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-
-  const mandal  = state.mandal.slug;
-  const village = state.village.slug;
-
-  // Rows whose file is not yet in R2 (a previous failed submit may have uploaded some already)
-  const pending = state.rows.filter(r => r.file && !r.r2Key);
-  const totalBytes = pending.reduce((s, r) => s + r.file.size, 0) || 1;
-  const loaded = {};
-  const recompute = () => updateOverallProgress(
-    Object.entries(loaded).reduce((s, [id, pct]) => s + (state.rows.find(r => r.id === id)?.file?.size || 0) * pct / 100, 0) / totalBytes * 100
-  );
-
-  try {
-    if (pending.length) {
-      showUploadProgress(pending.map(r => ({ id: r.id, label: `${r.appNo.trim()} — ${r.file.name}` })));
-
-      // Step 1 — every PDF straight to R2, in parallel
-      const results = await Promise.allSettled(pending.map(async row => {
-        try {
-          const key = await uploadPdf(mandal, village, row.file, pct => {
-            loaded[row.id] = pct; updateRowProgress(row.id, pct); recompute();
-          });
-          row.r2Key = key;
-          loaded[row.id] = 100; updateRowProgress(row.id, 100); recompute();
-        } catch (e) {
-          updateRowProgress(row.id, 0, true);
-          throw new Error(`${row.appNo.trim() || 'Row'}: ${e.message}`);
-        }
-      }));
-
-      const failed = results.filter(r => r.status === 'rejected').map(r => r.reason.message);
-      if (failed.length) {
-        hideUploadProgress();
-        renderFormErrors(['Some PDFs failed to upload. Submit again to retry only the failed ones.', ...failed]);
-        return;
-      }
-      updateOverallProgress(100);
-    }
-
-    // Step 2 — tiny JSON request, no files attached
-    document.getElementById('upload-progress-label').textContent = 'Saving records…';
-    const { res, data } = await postJson(ROUTES.store, {
-      mandal, village,
-      records: state.rows.map(r => ({
-        module_id:          Number(r.moduleId),
-        application_number: r.appNo.trim(),
-        r2Key:              r.r2Key,
-        fileName:           r.file?.name || null,
-        fileSize:           r.file?.size || null,
-      })),
-    });
-    hideUploadProgress();
-
-    if (res.ok && data.success) {
-      showToast('✔ ' + (data.message || 'Disposals saved successfully.'));
-      showSuccessBox(data.message || 'Disposals saved successfully.');
-      clearRows();
-      addRow();
-      return;
-    }
-
-    if (data.errors) {
-      renderFormErrors(Array.isArray(data.errors) ? data.errors : Object.values(data.errors).flat());
-    } else {
-      showToast(data.message || 'Submission failed.', true);
-    }
-  } catch (err) {
-    hideUploadProgress();
-    showToast(err.message || 'Upload failed. Please try again.', true);
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   SUCCESS BOX — link to the "View Bhu Bharathi Disposals" page
-══════════════════════════════════════════════════════════════════ */
 function showSuccessBox(msg) {
   document.getElementById('js-error-box')?.remove();
   let box = document.getElementById('js-success-box');
@@ -827,17 +495,429 @@ function showSuccessBox(msg) {
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+
+function optionList(sel, items, placeholder, selectedId) {
+  sel.innerHTML = `<option value="">${placeholder}</option>`;
+  items.forEach(it => {
+    const o = document.createElement('option');
+    o.value = it.id;
+    o.textContent = it.name;
+    if (it.slug) o.dataset.slug = it.slug;
+    if (String(selectedId) === String(it.id)) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function loadVillages(mandalId) {
+  const key = String(mandalId);
+  if (!villageCache.has(key)) {
+    villageCache.set(key,
+      fetch(`/api/mandals/${mandalId}/villages`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(v => Array.isArray(v) ? v : (v.data || []))
+        .catch(err => { villageCache.delete(key); throw err; })
+    );
+  }
+  return villageCache.get(key);
+}
+
 /* ══════════════════════════════════════════════════════════════════
-   RESET
+   ROWS
 ══════════════════════════════════════════════════════════════════ */
+function newRowState(copyFrom = null) {
+  return {
+    id: 'r' + (++rowSeq),
+    mandalId:   copyFrom?.mandalId   || '',
+    mandalSlug: copyFrom?.mandalSlug || '',
+    villageId:  copyFrom?.villageId  || '',
+    villageSlug:copyFrom?.villageSlug|| '',
+    moduleId:   copyFrom?.moduleId   || '',
+    appNo: '', file: null, r2Key: null,
+    exists: null, checking: false, checkFailed: false, checkSeq: 0, checkTimer: null,
+    el: {},
+  };
+}
+
+function addRow(copyFrom = null) {
+  if (state.rows.length >= MAX_ROWS) {
+    showToast(`You can add at most ${MAX_ROWS} rows per submission.`, true);
+    return;
+  }
+  const row = newRowState(copyFrom);
+  state.rows.push(row);
+  document.getElementById('new-tbody').appendChild(buildRow(row));
+  if (row.mandalId) fillVillages(row, row.villageId);
+  afterRowsChanged();
+  (copyFrom ? row.el.app : row.el.mandal).focus();
+}
+
+function removeRow(id) {
+  const row = state.rows.find(r => r.id === id);
+  if (!row) return;
+  clearTimeout(row.checkTimer);
+  row.el.tr.remove();
+  state.rows = state.rows.filter(r => r.id !== id);
+  if (state.rows.length === 0) addRow();
+  afterRowsChanged();
+}
+
+function buildRow(row) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="num"></td>
+    <td><select class="f-mandal"></select></td>
+    <td><select class="f-village" disabled><option value="">— Select Mandal first —</option></select></td>
+    <td><select class="f-module"></select></td>
+    <td><input type="text" class="txt f-app" maxlength="100" placeholder="Application no."></td>
+    <td class="upcell">
+      <div class="upload-zone">
+        <input type="file" accept=".pdf,application/pdf">
+        <div class="uz-icon">📄</div>
+        <div class="uz-text">Click to upload PDF</div>
+      </div>
+      <div class="file-tag-wrap"></div>
+      <div class="row-progress" id="progress-wrap-${row.id}">
+        <div class="bar" id="progress-bar-${row.id}"></div><span class="txt" id="progress-text-${row.id}">0%</span>
+      </div>
+      <div class="row-status"></div>
+    </td>
+    <td style="text-align:center">
+      <div class="row-actions">
+        <button type="button" class="btn-danger-sm" title="Remove row">✕</button>
+        <button type="button" class="btn-copy" title="New row with the same mandal, village and module">⧉ Copy</button>
+      </div>
+    </td>`;
+
+  row.el = {
+    tr,
+    num:     tr.querySelector('.num'),
+    mandal:  tr.querySelector('.f-mandal'),
+    village: tr.querySelector('.f-village'),
+    module:  tr.querySelector('.f-module'),
+    app:     tr.querySelector('.f-app'),
+    zone:    tr.querySelector('.upload-zone'),
+    zoneTxt: tr.querySelector('.uz-text'),
+    file:    tr.querySelector('input[type=file]'),
+    tagWrap: tr.querySelector('.file-tag-wrap'),
+    status:  tr.querySelector('.row-status'),
+  };
+
+  optionList(row.el.mandal, MANDALS, '— Select Mandal —', row.mandalId);
+  optionList(row.el.module, MODULES, '— Select Module —', row.moduleId);
+
+  row.el.mandal.addEventListener('change', () => onMandalChange(row));
+  row.el.village.addEventListener('change', () => onVillageChange(row));
+  row.el.module.addEventListener('change', () => {
+    row.moduleId = row.el.module.value;
+    row.el.module.classList.remove('invalid');
+    scheduleCheck(row);
+  });
+  row.el.app.addEventListener('input', () => {
+    row.appNo = row.el.app.value;
+    row.el.app.classList.remove('invalid');
+    scheduleCheck(row);
+  });
+  row.el.file.addEventListener('change', () => onFilePicked(row));
+  tr.querySelector('.btn-danger-sm').onclick = () => removeRow(row.id);
+  tr.querySelector('.btn-copy').onclick = () => addRow(row);
+
+  return tr;
+}
+
+function onMandalChange(row) {
+  const opt = row.el.mandal.selectedOptions[0];
+  row.mandalId = row.el.mandal.value;
+  row.mandalSlug = opt?.dataset.slug || '';
+  row.villageId = ''; row.villageSlug = '';
+  row.r2Key = null;                       // R2 key is tied to mandal/village folder
+  row.el.mandal.classList.remove('invalid');
+  fillVillages(row, null);
+  scheduleCheck(row);
+}
+
+function fillVillages(row, selectedId) {
+  const sel = row.el.village;
+  if (!row.mandalId) {
+    sel.innerHTML = '<option value="">— Select Mandal first —</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.innerHTML = '<option value="">Loading villages…</option>';
+  sel.disabled = true;
+  const forMandal = row.mandalId;
+  loadVillages(forMandal)
+    .then(villages => {
+      if (row.mandalId !== forMandal) return;   // mandal changed while loading
+      optionList(sel, villages, '— Select Village —', selectedId);
+      sel.disabled = false;
+      if (selectedId && sel.value !== String(selectedId)) { row.villageId = ''; row.villageSlug = ''; }
+    })
+    .catch(() => {
+      sel.innerHTML = '<option value="">Failed to load — reselect mandal</option>';
+      showToast('Failed to load villages. Please try again.', true);
+    });
+}
+
+function onVillageChange(row) {
+  const opt = row.el.village.selectedOptions[0];
+  row.villageId = row.el.village.value;
+  row.villageSlug = opt?.dataset.slug || '';
+  row.r2Key = null;
+  row.el.village.classList.remove('invalid');
+  scheduleCheck(row);
+}
+
+function onFilePicked(row) {
+  const f = row.el.file.files[0];
+  if (!f) return;
+  if (row.exists) { row.el.file.value = ''; return; }
+  if (!isPdf(f)) { showToast('Only PDF files are allowed.', true); row.el.file.value = ''; return; }
+  setRowFile(row, f);
+}
+
+function setRowFile(row, file) {
+  row.file = file;
+  row.r2Key = null;
+  row.el.tagWrap.innerHTML = '';
+  if (file) {
+    const tag = document.createElement('div');
+    tag.className = 'uploaded-file';
+    tag.innerHTML = `📄 ${escapeHtml(shortName(file.name))} <span class="muted">(${humanSize(file.size)})</span>
+      <button type="button" class="remove-btn" title="Remove">✕</button>`;
+    tag.querySelector('.remove-btn').onclick = () => { row.el.file.value = ''; setRowFile(row, null); };
+    row.el.tagWrap.appendChild(tag);
+  } else {
+    row.el.file.value = '';
+  }
+  refreshInfo();
+}
+
+function comboKey(r) {
+  return [r.mandalId, r.villageId, r.moduleId, r.appNo.trim().toLowerCase()].join('|');
+}
+function isComplete(r) {
+  return r.mandalId && r.villageId && r.moduleId && r.appNo.trim() !== '';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   "ALREADY UPLOADED?" CHECK  →  GET bhu-bharathi/check
+══════════════════════════════════════════════════════════════════ */
+function scheduleCheck(row) {
+  clearTimeout(row.checkTimer);
+  row.checkSeq++;                 // invalidates any request still in flight
+  row.exists = null;
+  row.checkFailed = false;
+  row.checking = isComplete(row);
+  if (row.checking) row.checkTimer = setTimeout(() => runCheck(row), CHECK_DELAY_MS);
+  afterRowsChanged();
+}
+
+async function runCheck(row) {
+  const seq = row.checkSeq;
+  const qs = new URLSearchParams({
+    mandal_id: row.mandalId, village_id: row.villageId,
+    module_id: row.moduleId, application_number: row.appNo.trim(),
+  });
+  try {
+    const res  = await fetch(`${ROUTES.check}?${qs}`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json().catch(() => ({}));
+    if (seq !== row.checkSeq) return;            // inputs changed meanwhile
+    if (!res.ok || !data.success) throw new Error(data.message || 'check failed');
+    row.exists = data.exists ? (data.record || {}) : null;
+    if (row.exists && row.file) setRowFile(row, null);   // can't upload over an existing record
+  } catch (e) {
+    if (seq !== row.checkSeq) return;
+    row.checkFailed = true;
+  }
+  row.checking = false;
+  afterRowsChanged();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ROW STATUS (disabled upload, duplicates, checking…)
+══════════════════════════════════════════════════════════════════ */
+function afterRowsChanged() {
+  // duplicates inside this form (same 4 values as an earlier row)
+  const firstSeen = new Map();
+  state.rows.forEach((r, i) => {
+    r.dupOf = null;
+    if (!isComplete(r)) return;
+    const k = comboKey(r);
+    if (firstSeen.has(k)) r.dupOf = firstSeen.get(k);
+    else firstSeen.set(k, i + 1);
+  });
+
+  state.rows.forEach((r, i) => {
+    r.el.num.textContent = i + 1;
+    const blocked = !!r.exists;
+    r.el.zone.classList.toggle('disabled', blocked);
+    r.el.file.disabled = blocked;
+    r.el.zoneTxt.textContent = blocked ? 'Already uploaded' : 'Click to upload PDF';
+    r.el.tr.classList.toggle('row-exists', blocked);
+
+    const st = r.el.status;
+    st.className = 'row-status';
+    st.innerHTML = '';
+    if (r.checking) {
+      st.className += ' show st-checking';
+      st.innerHTML = '<span class="mini-spin"></span>Checking if already uploaded…';
+    } else if (r.exists) {
+      const rec = r.exists;
+      st.className += ' show st-exists';
+      st.innerHTML = `✔ Already uploaded${rec.uploader_name ? ' by ' + escapeHtml(rec.uploader_name) : ''}${rec.created_at ? ' on ' + escapeHtml(rec.created_at) : ''}.
+        ${rec.file_url ? `<a href="${rec.file_url}" target="_blank" rel="noopener">👁 View</a> ·` : ''}
+        Change a field or remove this row.`;
+    } else if (r.dupOf) {
+      st.className += ' show st-dup';
+      st.textContent = `⚠ Same mandal, village, module and application no. as row ${r.dupOf}.`;
+    } else if (r.checkFailed) {
+      st.className += ' show st-warn';
+      st.textContent = 'Could not check for an existing upload — it will be checked again on submit.';
+    }
+  });
+
+  document.getElementById('add-row-btn').disabled = state.rows.length >= MAX_ROWS || !MANDALS.length || !MODULES.length;
+  refreshInfo();
+}
+
+function refreshInfo() {
+  const files  = state.rows.filter(r => r.file).length;
+  const exists = state.rows.filter(r => r.exists).length;
+  document.getElementById('row-info').textContent =
+    `${state.rows.length} record(s) | ${files} PDF(s) attached` + (exists ? ` | ${exists} already uploaded` : '');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VALIDATION
+══════════════════════════════════════════════════════════════════ */
+function validateRows() {
+  const errors = [];
+  state.rows.forEach((r, i) => {
+    const n = i + 1;
+    if (!r.mandalId)       { errors.push(`Row ${n}: Please select a mandal.`);  markEl(r.el.mandal); }
+    if (!r.villageId)      { errors.push(`Row ${n}: Please select a village.`); markEl(r.el.village); }
+    if (!r.moduleId)       { errors.push(`Row ${n}: Please select a module.`);  markEl(r.el.module); }
+    if (!r.appNo.trim())   { errors.push(`Row ${n}: Application number is required.`); markEl(r.el.app); }
+    if (r.exists)          { errors.push(`Row ${n}: Already uploaded for this mandal, village and module — change it or remove the row.`); }
+    else if (r.dupOf)      { errors.push(`Row ${n}: Same mandal, village, module and application no. as row ${r.dupOf}.`); markEl(r.el.app); }
+    else if (!r.file && !r.r2Key) { errors.push(`Row ${n}: Please upload the PDF.`); }
+  });
+  return errors;
+}
+function markEl(el) { el.classList.add('invalid'); }
+
+/* ══════════════════════════════════════════════════════════════════
+   SUBMIT — parallel PDF uploads to R2, then one small JSON request
+══════════════════════════════════════════════════════════════════ */
+async function submitForm() {
+  if (state.rows.some(r => r.checking)) {
+    showToast('Please wait — still checking for existing uploads.', true);
+    return;
+  }
+  document.getElementById('js-error-box')?.remove();
+  document.getElementById('js-success-box')?.remove();
+
+  const errors = validateRows();
+  if (errors.length) { renderFormErrors(errors); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+
+  const pending    = state.rows.filter(r => r.file && !r.r2Key);
+  const totalBytes = pending.reduce((s, r) => s + r.file.size, 0) || 1;
+  const loaded = {};
+  const recompute = () => updateOverallProgress(
+    pending.reduce((s, r) => s + r.file.size * (loaded[r.id] || 0) / 100, 0) / totalBytes * 100
+  );
+  const rowNo = r => state.rows.indexOf(r) + 1;
+
+  try {
+    if (pending.length) {
+      showUploadProgress(pending.map(r => ({ id: r.id, label: `Row ${rowNo(r)} · ${r.appNo.trim()} — ${r.file.name}` })));
+
+      // Step 1 — each PDF straight to R2 (into its own mandal/village folder), in parallel
+      const results = await Promise.allSettled(pending.map(async row => {
+        try {
+          const key = await uploadPdf(row.mandalSlug, row.villageSlug, row.file, pct => {
+            loaded[row.id] = pct; updateRowProgress(row.id, pct); recompute();
+          });
+          row.r2Key = key;
+          loaded[row.id] = 100; updateRowProgress(row.id, 100); recompute();
+        } catch (e) {
+          updateRowProgress(row.id, 0, true);
+          throw new Error(`Row ${rowNo(row)} (${row.appNo.trim()}): ${e.message}`);
+        }
+      }));
+
+      const failed = results.filter(r => r.status === 'rejected').map(r => r.reason.message);
+      if (failed.length) {
+        hideUploadProgress();
+        renderFormErrors(['Some PDFs failed to upload. Submit again to retry only the failed ones.', ...failed]);
+        return;
+      }
+      updateOverallProgress(100);
+    }
+
+    // Step 2 — one JSON request with every row's mandal / village / module
+    document.getElementById('upload-progress-label').textContent = 'Saving records…';
+    const { res, data } = await postJson(ROUTES.store, {
+      records: state.rows.map(r => ({
+        mandal_id:          Number(r.mandalId),
+        village_id:         Number(r.villageId),
+        module_id:          Number(r.moduleId),
+        application_number: r.appNo.trim(),
+        r2Key:              r.r2Key,
+        fileName:           r.file?.name || null,
+        fileSize:           r.file?.size || null,
+      })),
+    });
+    hideUploadProgress();
+
+    if (res.ok && data.success) {
+      showToast('✔ ' + (data.message || 'Disposals saved successfully.'));
+      clearAllRows();
+      addRow();
+      showSuccessBox(data.message || 'Disposals saved successfully.');
+      return;
+    }
+
+    if (data.errors) {
+      renderFormErrors(Array.isArray(data.errors) ? data.errors : Object.values(data.errors).flat());
+      // someone may have uploaded the same combination meanwhile — re-check all rows
+      state.rows.forEach(r => { if (isComplete(r)) scheduleCheck(r); });
+    } else {
+      showToast(data.message || 'Submission failed.', true);
+    }
+  } catch (err) {
+    hideUploadProgress();
+    showToast(err.message || 'Upload failed. Please try again.', true);
+  } finally {
+    btn.disabled = !MANDALS.length || !MODULES.length;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RESET / INIT
+══════════════════════════════════════════════════════════════════ */
+function clearAllRows() {
+  state.rows.forEach(r => clearTimeout(r.checkTimer));
+  state.rows = [];
+  document.getElementById('new-tbody').innerHTML = '';
+}
+
 function resetForm() {
   if (!confirm('Reset the form? All unsaved rows will be lost.')) return;
-  clearRows();
-  if (state.village && can('upload')) addRow();
+  clearAllRows();
+  addRow();
   document.getElementById('js-error-box')?.remove();
   document.getElementById('js-success-box')?.remove();
 }
 
+document.getElementById('max-rows').textContent = MAX_ROWS;
+if (!MANDALS.length || !MODULES.length) {
+  document.getElementById('submit-btn').disabled = true;
+}
+addRow();
 </script>
 </body>
 </html>
