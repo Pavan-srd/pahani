@@ -570,10 +570,10 @@ function buildRow(row) {
     <td><select class="f-module"></select></td>
     <td><input type="text" class="txt f-app" maxlength="100" placeholder="Application no."></td>
     <td class="upcell">
-      <div class="upload-zone">
-        <input type="file" accept=".pdf,application/pdf">
+      <div class="upload-zone disabled" title="Select mandal, village & module first">
+        <input type="file" accept=".pdf,application/pdf" disabled>
         <div class="uz-icon">📄</div>
-        <div class="uz-text">Click to upload PDF</div>
+        <div class="uz-text">Select mandal, village &amp; module first</div>
       </div>
       <div class="file-tag-wrap"></div>
       <div class="row-progress" id="progress-wrap-${row.id}">
@@ -651,6 +651,7 @@ function fillVillages(row, selectedId) {
       optionList(sel, villages, '— Select Village —', selectedId);
       sel.disabled = false;
       if (selectedId && sel.value !== String(selectedId)) { row.villageId = ''; row.villageSlug = ''; }
+      afterRowsChanged();
     })
     .catch(() => {
       sel.innerHTML = '<option value="">Failed to load — reselect mandal</option>';
@@ -670,7 +671,7 @@ function onVillageChange(row) {
 function onFilePicked(row) {
   const f = row.el.file.files[0];
   if (!f) return;
-  if (row.exists) { row.el.file.value = ''; return; }
+  if (row.exists || !dropdownsReady(row)) { row.el.file.value = ''; return; }
   if (!isPdf(f)) { showToast('Only PDF files are allowed.', true); row.el.file.value = ''; return; }
   setRowFile(row, f);
 }
@@ -690,6 +691,11 @@ function setRowFile(row, file) {
     row.el.file.value = '';
   }
   refreshInfo();
+}
+
+/** Upload is allowed once mandal, village and module are selected (application no. not needed). */
+function dropdownsReady(r) {
+  return !!(r.mandalId && r.villageId && r.moduleId);
 }
 
 function comboKey(r) {
@@ -749,10 +755,16 @@ function afterRowsChanged() {
 
   state.rows.forEach((r, i) => {
     r.el.num.textContent = i + 1;
-    const blocked = !!r.exists;
-    r.el.zone.classList.toggle('disabled', blocked);
-    r.el.file.disabled = blocked;
-    r.el.zoneTxt.textContent = blocked ? 'Already uploaded' : 'Click to upload PDF';
+    const blocked  = !!r.exists;
+    const ready    = dropdownsReady(r);
+    const disabled = blocked || !ready;
+    const hint     = blocked ? 'Already uploaded'
+                   : ready   ? 'Click to upload PDF'
+                   :           'Select mandal, village & module first';
+    r.el.zone.classList.toggle('disabled', disabled);
+    r.el.file.disabled = disabled;
+    r.el.zoneTxt.textContent = hint;
+    r.el.zone.title = hint;
     r.el.tr.classList.toggle('row-exists', blocked);
 
     const st = r.el.status;
