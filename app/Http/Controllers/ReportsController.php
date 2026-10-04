@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BhuBharathi;
+use App\Models\Module;
 use App\Models\User;
 use App\Models\Pahani;
 use App\Models\Mandal;
 use App\Models\Village;
 use App\Models\PahaniDocument;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -205,6 +208,8 @@ class ReportsController extends Controller
                 ];
             });
 
+        $bb = $this->bhuBharathiReport($user);
+
         return view('reports.user', compact(
             'user',
             'totalMandalsAssigned',
@@ -219,8 +224,151 @@ class ReportsController extends Controller
             'pendingDocuments',
             'mandalChartData',
             'documentChartData',
-            'villageChartData'
+            'villageChartData',
+            'bb'
         ));
+    }
+
+        /**
+     * Bhu Bharathi section of the user report.
+     * Counts only disposals uploaded by this user (uploaded_by).
+     */
+    private function bhuBharathiReport($user): array
+    {
+        $perm          = $user->documentPermission;
+        $assignedIds   = $perm?->getBbUploadMandalIds() ?? [];
+        $permittedMods = $perm?->getBbUploadModuleIds() ?? [];
+
+        $mine = fn () => BhuBharathi::where('uploaded_by', $user->id);
+        $fmt  = fn ($dt) => $dt ? Carbon::parse($dt)->format('d-M-Y') : null;
+
+        // ── Per mandal: uploads, distinct villages, last upload ──
+        $byMandal = $mine()
+            ->select(
+                'mandal_id',
+                DB::raw('COUNT(*) as uploads'),
+                DB::raw('COUNT(DISTINCT village_id) as villages'),
+                DB::raw('MAX(created_at) as last_upload')
+            )
+            ->groupBy('mandal_id')
+            ->get()
+            ->keyBy('mandal_id');
+
+        // Assigned mandals + any mandal the user uploaded into earlier
+        $mandalIds = collect($assignedIds)->merge($byMandal->keys())
+            ->map(fn ($id) => (int) $id)->unique()->values();
+
+        $villageTotals = Village::whereIn('mandal_id', $mandalIds)
+            ->where('is_active', true)
+            ->select('mandal_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('mandal_id')
+            ->pluck('total', 'mandal_id');
+
+        $mandalRows = Mandal::whereIn('id', $mandalIds)->orderBy('name')->get(['id', 'name', 'is_active'])
+            ->filter(fn ($m) => $m->is_active || $byMandal->has($m->id))
+            ->map(function ($m) use ($byMandal, $villageTotals, $assignedIds, $fmt) {
+                $row      = $byMandal->get($m->id);
+                $uploads  = (int) ($row?->uploads ?? 0);
+                $covered  = (int) ($row?->villages ?? 0);
+                $total    = (int) ($villageTotals[$m->id] ?? 0);
+                $coverage = $total > 0 ? min(100, round($covered / $total * 100, 1)) : 0;
+
+                return [
+                    'name'              => $m->name,
+                    'assigned'          => in_array((int) $m->id, $assignedIds, true),
+                    'total_villages'    => $total,
+                    'uploaded_villages' => $covered,
+                    'uploads'           => $uploads,
+                    'coverage'          => $coverage,
+                    'last_upload'       => $fmt($row?->last_upload),
+                    'status'            => match (true) {
+                        $total > 0 && $covered >= $total => 'All Villages Covered',
+                        $uploads > 0                     => 'In Progress',
+                        default                          => 'Not Started',
+                    },
+                ];
+            })
+            ->values()->all();
+
+        // ── Per module ──
+        $byModule     = $mine()->select('module_id', DB::raw('COUNT(*) as uploads'))
+            ->groupBy('module_id')->pluck('uploads', 'module_id');
+        $totalUploads = (int) $byModule->sum();
+        $share        = fn (int $n) => $totalUploads > 0 ? round($n / $totalUploads * 100, 1) : 0;
+
+        $moduleIds = collect($permittedMods)
+            ->merge($byModule->keys()->filter()->map(fn ($k) => (int) $k))
+            ->unique();
+
+        $moduleRows = Module::whereIn('id', $moduleIds)->orderBy('name')->get(['id', 'name', 'is_active'])
+            ->filter(fn ($mod) => ($mod->is_active && in_array((int) $mod->id, $permittedMods, true))
+                               || (int) ($byModule[$mod->id] ?? 0) > 0)
+            ->map(fn ($mod) => [
+                'name'      => $mod->name,
+                'permitted' => in_array((int) $mod->id, $permittedMods, true),
+                'uploads'   => (int) ($byModule[$mod->id] ?? 0),
+                'share'     => $share((int) ($byModule[$mod->id] ?? 0)),
+            ])
+            ->sortByDesc('uploads')->values()->all();
+
+        // Older disposals saved before modules were linked (module_id = NULL)
+        $unlinked = (int) ($byModule[''] ?? 0);
+        if ($unlinked > 0) {
+            $moduleRows[] = ['name' => 'Not linked to a module', 'permitted' => true, 'uploads' => $unlinked, 'share' => $share($unlinked)];
+        }
+
+        // ── Top 20 villages ──
+        $villageRows = $mine()
+            ->select('village_id', 'mandal_id', DB::raw('COUNT(*) as uploads'), DB::raw('MAX(created_at) as last_upload'))
+            ->groupBy('village_id', 'mandal_id')
+            ->orderByDesc('uploads')
+            ->limit(20)
+            ->with(['village:id,name', 'mandal:id,name'])
+            ->get()
+            ->map(fn ($r) => [
+                'name'        => $r->village?->name ?? '—',
+                'mandal'      => $r->mandal?->name ?? '—',
+                'uploads'     => (int) $r->uploads,
+                'last_upload' => $fmt($r->last_upload),
+            ])->all();
+
+        // ── Last 10 uploads ──
+        $recent = $mine()
+            ->with(['mandal:id,name', 'village:id,name', 'moduleMaster:id,name'])
+            ->latest()->limit(10)->get()
+            ->map(fn ($r) => [
+                'application_number' => $r->application_number,
+                'module'             => $r->moduleMaster?->name ?? $r->module,
+                'mandal'             => $r->mandal?->name ?? '—',
+                'village'            => $r->village?->name ?? '—',
+                'uploaded_at'        => $r->created_at?->format('d-M-Y h:i A'),
+            ])->all();
+
+        // ── Headline numbers ──
+        $villagesTotal   = Village::whereIn('mandal_id', $assignedIds)->where('is_active', true)->count();
+        $villagesCovered = $mine()->whereIn('mandal_id', $assignedIds)->distinct()->count('village_id');
+        $bytes           = (int) $mine()->sum('file_size');
+        $units           = ['B', 'KB', 'MB', 'GB'];
+        $pow             = $bytes > 0 ? min((int) floor(log($bytes, 1024)), 3) : 0;
+
+        return [
+            'stats' => [
+                'mandals_assigned'  => Mandal::whereIn('id', $assignedIds)->where('is_active', true)->count(),
+                'mandals_uploaded'  => $byMandal->count(),
+                'villages_total'    => $villagesTotal,
+                'villages_uploaded' => $villagesCovered,
+                'village_coverage'  => $villagesTotal > 0 ? min(100, round($villagesCovered / $villagesTotal * 100, 1)) : 0,
+                'modules_permitted' => Module::active()->whereIn('id', $permittedMods)->count(),
+                'modules_used'      => $byModule->keys()->filter()->count(),
+                'total_uploads'     => $totalUploads,
+                'this_month'        => $mine()->where('created_at', '>=', now()->startOfMonth())->count(),
+                'total_size'        => round($bytes / (1024 ** $pow), 2) . ' ' . $units[$pow],
+            ],
+            'mandals'  => $mandalRows,
+            'modules'  => $moduleRows,
+            'villages' => $villageRows,
+            'recent'   => $recent,
+        ];
     }
 
     /**

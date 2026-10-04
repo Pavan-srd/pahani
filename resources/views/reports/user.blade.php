@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>My Reports — Pahani Upload Summary</title>
+  <title>My Reports — Pahani &amp; Bhu Bharathi Upload Summary</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -77,9 +77,35 @@
     .empty-state { text-align: center; padding: 30px 10px; color: #888; font-size: 11px; }
     .empty-state .es-icon { font-size: 30px; margin-bottom: 8px; opacity: 0.5; }
 
+    /* ── REPORT TABS ── */
+    .report-tabs { display: flex; gap: 0; margin-bottom: 14px; border-bottom: 2px solid #154360; }
+    .report-tab { background: #eaf2f8; color: #154360; border: 1px solid #c8dce9; border-bottom: none; padding: 9px 18px; font-size: 11px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 0.4px; margin-right: 4px; border-radius: 3px 3px 0 0; }
+    .report-tab:hover { background: #d6eaf8; }
+    .report-tab.active { background: #154360; color: white; border-color: #154360; }
+    .report-tab.bb.active { background: #1e6b52; border-color: #1e6b52; }
+    .report-tab .count { display: inline-block; background: rgba(255,255,255,0.25); border-radius: 10px; padding: 0 7px; margin-left: 6px; font-size: 10px; }
+    .report-tab:not(.active) .count { background: #c8dce9; }
+    .report-panel { display: none; }
+    .report-panel.active { display: block; }
+    .print-title { display: none; font-size: 13px; font-weight: bold; color: #154360; margin: 16px 0 10px; text-transform: uppercase; }
+
+    .bb .section-header { background: #1e6b52; }
+    .bb .table th { background: #e8f5e9; color: #145a45; border-color: #cfe8d8; }
+    .stat-card.bbc { border-left: 4px solid #1e6b52; }
+    .stat-card.bbc .stat-value { color: #1e6b52; }
+    .muted { color: #888; font-size: 10px; }
+    .mod-tag { display: inline-block; background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; border-radius: 10px; padding: 2px 8px; font-size: 10px; font-weight: bold; }
+    .app-no { font-family: Consolas, monospace; font-weight: bold; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-2 .section-card { margin-bottom: 0; }
+    .link-more { font-size: 10px; color: #1e6b52; font-weight: bold; text-decoration: none; float: right; text-transform: none; letter-spacing: 0; color: #cfe8d8; }
+    .link-more:hover { text-decoration: underline; }
+
     /* ── PRINT STYLES ── */
     @media print {
-      .page-nav, .logout-btn { display: none; }
+      .page-nav, .logout-btn, .report-tabs { display: none; }
+      .report-panel { display: block !important; }
+      .print-title { display: block; }
       body { background: white; }
       .main-body { max-width: 100%; }
     }
@@ -88,6 +114,7 @@
       .charts-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .chart-wrapper { height: 250px; }
+      .grid-2 { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -105,24 +132,12 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      PAHANI DIGITIZATION MANAGEMENT SYSTEM — My Upload Reports ({{ auth()->user()?->name }})
+      PAHANI &amp; BHU BHARATHI — My Upload Reports ({{ auth()->user()?->name }})
     </div>
   </div>
 
   {{-- ── NAV ── --}}
-  <div class="page-nav">
-    <div class="nav-left">
-      <a class="nav-item" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
-      <a class="nav-item" href="{{ route('pahani.view') }}">📋 View Records</a>
-      <a class="nav-item active" href="{{ route('reports.user') }}">📊 My Reports</a>
-    </div>
-    <div class="nav-right">
-      <form id="logoutForm" method="POST" action="{{ route('logout') }}">
-        @csrf
-        <button type="button" class="logout-btn" onclick="confirmLogout()">🚪 Logout</button>
-      </form>
-    </div>
-  </div>
+  @include('partials.user-nav', ['active' => 'reports'])
 
   <div class="main-body">
 
@@ -132,8 +147,18 @@
     </div>
 
     <div class="breadcrumb">
-      <a href="#">Home</a> › <a href="#">Reports</a> › My Upload Summary
+      <a href="{{ route('home') }}">Home</a> › <a href="#">Reports</a> › My Upload Summary
     </div>
+
+    {{-- ── TABS ── --}}
+    <div class="report-tabs" role="tablist">
+      <button type="button" class="report-tab" data-tab="pahani" role="tab">📑 Pahani <span class="count">{{ $totalDocumentsUploaded }}</span></button>
+      <button type="button" class="report-tab bb" data-tab="bhu-bharathi" role="tab">🗂️ Bhu Bharathi <span class="count">{{ $bb['stats']['total_uploads'] }}</span></button>
+    </div>
+
+    {{-- ═══════════════════════ PAHANI REPORT ═══════════════════════ --}}
+    <div class="report-panel" id="panel-pahani" role="tabpanel">
+    <div class="print-title">📑 Pahani Upload Report</div>
 
     {{-- ── STATISTICS CARDS ── --}}
     <div class="stats-grid">
@@ -297,25 +322,263 @@
       </div>
     </div>
 
+    </div>{{-- /panel-pahani --}}
+
+    {{-- ═══════════════════════ BHU BHARATHI REPORT ═══════════════════════ --}}
+    <div class="report-panel bb" id="panel-bhu-bharathi" role="tabpanel">
+    <div class="print-title">🗂️ Bhu Bharathi Disposals Report</div>
+
+    {{-- ── STATISTICS CARDS ── --}}
+    <div class="stats-grid">
+      <div class="stat-card bbc">
+        <div class="stat-label">📁 Upload Mandals Assigned</div>
+        <div class="stat-value">{{ $bb['stats']['mandals_assigned'] }}</div>
+        <div class="stat-subtitle">Given by administrator</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">✅ Mandals with Uploads</div>
+        <div class="stat-value">{{ $bb['stats']['mandals_uploaded'] }}</div>
+        <div class="stat-subtitle">Mandals where you uploaded disposals</div>
+      </div>
+      <div class="stat-card bbc">
+        <div class="stat-label">🏘️ Villages Covered</div>
+        <div class="stat-value">{{ $bb['stats']['villages_uploaded'] }}</div>
+        <div class="stat-subtitle">of {{ $bb['stats']['villages_total'] }} villages in your mandals</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:{{ $bb['stats']['village_coverage'] }}%;background:#1e6b52"></div></div>
+      </div>
+      <div class="stat-card bbc">
+        <div class="stat-label">🧩 Modules Permitted</div>
+        <div class="stat-value">{{ $bb['stats']['modules_permitted'] }}</div>
+        <div class="stat-subtitle">{{ $bb['stats']['modules_used'] }} used in your uploads</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">📤 Disposals Uploaded</div>
+        <div class="stat-value">{{ $bb['stats']['total_uploads'] }}</div>
+        <div class="stat-subtitle">{{ $bb['stats']['total_size'] }} of PDFs</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-label">🗓️ This Month</div>
+        <div class="stat-value">{{ $bb['stats']['this_month'] }}</div>
+        <div class="stat-subtitle">Uploaded in {{ date('F Y') }}</div>
+      </div>
+    </div>
+
+    {{-- ── MANDAL WISE ── --}}
+    <div class="section-card">
+      <div class="section-header">📁 Mandal-wise Summary</div>
+      <div class="section-body">
+        @if(count($bb['mandals']) > 0)
+          <div style="overflow-x:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mandal</th>
+                  <th>Total Villages</th>
+                  <th>Villages with Disposals</th>
+                  <th>Disposals Uploaded</th>
+                  <th>Village Coverage</th>
+                  <th>Last Upload</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($bb['mandals'] as $m)
+                  <tr>
+                    <td>
+                      <strong>{{ $m['name'] }}</strong>
+                      @unless($m['assigned'])
+                        <div class="muted">No longer assigned for upload</div>
+                      @endunless
+                    </td>
+                    <td><strong>{{ $m['total_villages'] }}</strong></td>
+                    <td><strong>{{ $m['uploaded_villages'] }}</strong></td>
+                    <td><strong>{{ $m['uploads'] }}</strong></td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px;min-width:100px">
+                        <div class="progress-bar" style="flex:1;margin-top:0">
+                          <div class="progress-fill" style="width:{{ $m['coverage'] }}%;background:{{ $m['coverage'] >= 75 ? '#27ae60' : ($m['coverage'] >= 50 ? '#f39c12' : '#c0392b') }}"></div>
+                        </div>
+                        <strong style="min-width:40px;font-size:10px">{{ $m['coverage'] }}%</strong>
+                      </div>
+                    </td>
+                    <td>{{ $m['last_upload'] ?? '—' }}</td>
+                    <td>
+                      @if($m['status'] === 'All Villages Covered')
+                        <span class="badge badge-success">✓ {{ $m['status'] }}</span>
+                      @elseif($m['status'] === 'In Progress')
+                        <span class="badge badge-warning">⚠ {{ $m['status'] }}</span>
+                      @else
+                        <span class="badge badge-danger">✘ {{ $m['status'] }}</span>
+                      @endif
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @else
+          <div class="empty-state">
+            <div class="es-icon">📭</div>
+            <p>No Bhu Bharathi mandals assigned yet</p>
+          </div>
+        @endif
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:14px">
+      {{-- ── MODULE WISE ── --}}
+      <div class="section-card">
+        <div class="section-header">🧩 Module-wise Summary</div>
+        <div class="section-body">
+          @if(count($bb['modules']) > 0)
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Module</th>
+                  <th style="width:90px">Disposals</th>
+                  <th style="width:140px">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($bb['modules'] as $mod)
+                  <tr>
+                    <td>
+                      <span class="mod-tag">{{ $mod['name'] }}</span>
+                      @if(!$mod['permitted'] && $mod['uploads'] > 0)
+                        <div class="muted">Not in your current upload list</div>
+                      @endif
+                    </td>
+                    <td><strong>{{ $mod['uploads'] }}</strong></td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <div class="progress-bar" style="flex:1;margin-top:0">
+                          <div class="progress-fill" style="width:{{ $mod['share'] }}%;background:#1e6b52"></div>
+                        </div>
+                        <span style="font-size:10px;min-width:36px">{{ $mod['share'] }}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          @else
+            <div class="empty-state">
+              <div class="es-icon">🧩</div>
+              <p>No modules permitted yet</p>
+            </div>
+          @endif
+        </div>
+      </div>
+
+      {{-- ── VILLAGE WISE ── --}}
+      <div class="section-card">
+        <div class="section-header">🏘️ Village-wise Summary (Top 20)</div>
+        <div class="section-body">
+          @if(count($bb['villages']) > 0)
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Village</th>
+                  <th>Mandal</th>
+                  <th style="width:80px">Disposals</th>
+                  <th style="width:95px">Last Upload</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($bb['villages'] as $v)
+                  <tr>
+                    <td><strong>{{ $v['name'] }}</strong></td>
+                    <td>{{ $v['mandal'] }}</td>
+                    <td>{{ $v['uploads'] }}</td>
+                    <td>{{ $v['last_upload'] ?? '—' }}</td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          @else
+            <div class="empty-state">
+              <div class="es-icon">📭</div>
+              <p>No disposals uploaded yet</p>
+            </div>
+          @endif
+        </div>
+      </div>
+    </div>
+
+    {{-- ── RECENT UPLOADS ── --}}
+    <div class="section-card">
+      <div class="section-header">
+        🕒 Recent Uploads (Last 10)
+        <a class="link-more" href="{{ route('bhu-bharathi.my-files') }}">View all disposals →</a>
+      </div>
+      <div class="section-body">
+        @if(count($bb['recent']) > 0)
+          <div style="overflow-x:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>File / Application No.</th>
+                  <th>Module</th>
+                  <th>Mandal</th>
+                  <th>Village</th>
+                  <th>Uploaded</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach($bb['recent'] as $r)
+                  <tr>
+                    <td><span class="app-no">{{ $r['application_number'] }}</span></td>
+                    <td><span class="mod-tag">{{ $r['module'] }}</span></td>
+                    <td>{{ $r['mandal'] }}</td>
+                    <td>{{ $r['village'] }}</td>
+                    <td>{{ $r['uploaded_at'] }}</td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        @else
+          <div class="empty-state">
+            <div class="es-icon">📭</div>
+            <p>No disposals uploaded yet. <a href="{{ route('bhu-bharathi.index') }}" style="color:#1e6b52;font-weight:bold">Upload now →</a></p>
+          </div>
+        @endif
+      </div>
+    </div>
+
+    </div>{{-- /panel-bhu-bharathi --}}
+
     <div style="text-align:center;padding:20px;color:#666;font-size:10px;border-top:1px solid #e0e0e0;margin-top:20px">
       <p>📋 This report was generated on {{ date('d-M-Y H:i A') }}</p>
-      <p><button onclick="window.print()" style="background:#154360;color:white;border:none;padding:6px 12px;border-radius:2px;cursor:pointer;font-weight:bold">🖨️ Print Report</button></p>
+      <p> <button onclick="window.print()" title="Prints both the Pahani and Bhu Bharathi reports" style="background:#154360;color:white;border:none;padding:6px 12px;border-radius:2px;cursor:pointer;font-weight:bold">🖨️ Print Report</button></p>
     </div>
 
   </div>
 
   <script>
-    
+    // ══════════════════════════════════════════════════════════════════
+    // REPORT TABS  (remembers the tab in the URL: #pahani / #bhu-bharathi)
+    // ══════════════════════════════════════════════════════════════════
+    (function () {
+      const tabs = document.querySelectorAll('.report-tab');
 
-    // ══════════════════════════════════════════════════════════════════
-    // UTILITY FUNCTIONS
-    // ══════════════════════════════════════════════════════════════════
-    
-    function confirmLogout() {
-      if (confirm('Are you sure you want to logout?')) {
-        document.getElementById('logoutForm').submit();
+      function show(name) {
+        if (!document.getElementById('panel-' + name)) name = 'pahani';
+        tabs.forEach(t => {
+          const on = t.dataset.tab === name;
+          t.classList.toggle('active', on);
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.report-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
       }
-    }
+
+      tabs.forEach(t => t.addEventListener('click', () => {
+        show(t.dataset.tab);
+        history.replaceState(null, '', '#' + t.dataset.tab);
+      }));
+
+      show((location.hash || '#pahani').slice(1));
+    })();
   </script>
 
 </body>
