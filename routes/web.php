@@ -195,6 +195,9 @@ Route::middleware(['is_admin'])->group(function () {
         Route::get('/', 'adminIndex')->name('index');
         Route::get('/{bhuBharathi}/file', 'file')->name('file')->whereNumber('bhuBharathi');
     });
+
+    Route::get('/admin/users/{user}/edit', [AdminController::class, 'editUserPage'])->name('admin.users.edit');
+    
 });
 
 require __DIR__.'/auth.php';

@@ -412,6 +412,10 @@ class AdminController extends Controller
             'bb_view_mandal_ids.*'   => ['integer', 'exists:mandals,id'],
             'bb_edit_mandal_ids'     => ['nullable', 'array'],
             'bb_edit_mandal_ids.*'   => ['integer', 'exists:mandals,id'],
+
+            // Bhu Bharathi Disposals — modules the user may upload
+            'bb_upload_module_ids'   => ['nullable', 'array'],
+            'bb_upload_module_ids.*' => ['integer', 'exists:modules,id'],
         ], [
             'email.unique'                  => 'A user with this email already exists.',
             'working_office_id.required'    => 'Working office is required.',
@@ -429,6 +433,9 @@ class AdminController extends Controller
             'bb_view_mandal_ids.*.exists'    => 'One or more Bhu Bharathi view mandals do not exist.',
             'bb_edit_mandal_ids.*.integer'   => 'Invalid mandal selected for Bhu Bharathi edit permission.',
             'bb_edit_mandal_ids.*.exists'    => 'One or more Bhu Bharathi edit mandals do not exist.',
+
+            'bb_upload_module_ids.*.integer' => 'Invalid module selected for Bhu Bharathi upload permission.',
+            'bb_upload_module_ids.*.exists'  => 'One or more Bhu Bharathi upload modules do not exist.',
         ]);
  
         DB::beginTransaction();
@@ -455,6 +462,8 @@ class AdminController extends Controller
                 'bb_upload_mandal_ids'  => $this->cleanMandalIds($validated['bb_upload_mandal_ids'] ?? []),
                 'bb_view_mandal_ids'    => $this->cleanMandalIds($validated['bb_view_mandal_ids'] ?? []),
                 'bb_edit_mandal_ids'    => $this->cleanMandalIds($validated['bb_edit_mandal_ids'] ?? []),
+
+                'bb_upload_module_ids'  => $this->cleanMandalIds($validated['bb_upload_module_ids'] ?? []),
             ]);
  
             DB::commit();
@@ -660,6 +669,8 @@ class AdminController extends Controller
             'bb_upload_mandal_ids' => $permissions?->getBbUploadMandalIds() ?? [],
             'bb_view_mandal_ids'   => $permissions?->getBbViewMandalIds() ?? [],
             'bb_edit_mandal_ids'   => $permissions?->getBbEditMandalIds() ?? [],
+
+            'bb_upload_module_ids' => $permissions?->getBbUploadModuleIds() ?? [],
         ];
     }
 
@@ -667,5 +678,10 @@ class AdminController extends Controller
     private function cleanMandalIds(array $ids): array
     {
         return array_values(array_unique(array_filter(array_map('intval', $ids))));
+    }
+
+    public function editUserPage(User $user)
+    {
+        return view('admin.users.edit', compact('user'));
     }
 }

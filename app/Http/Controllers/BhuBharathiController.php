@@ -27,6 +27,9 @@ use Illuminate\Validation\Rule;
  * The View (open PDF) and Edit buttons are strictly permission-based:
  *   View is allowed only for mandals in bb_view_mandal_ids,
  *   Edit is allowed only for mandals in bb_edit_mandal_ids.
+ * Module upload permission (bb_upload_module_ids):
+ *   the Module dropdown only lists modules the admin ticked for this user,
+ *   and store()/update() only accept those modules.
  *
  * Files go browser → R2 directly (presigned PUT, or multipart for large files),
  * then only a small JSON payload is sent to store()/update().
@@ -38,6 +41,7 @@ class BhuBharathiController extends Controller
     private const MIME     = 'application/pdf';
 
     private ?array $permCache = null;
+    private ?array $moduleCache = null;
 
     // ── PAGE ─────────────────────────────────────────────────────────────────
     public function index()
@@ -60,8 +64,10 @@ class BhuBharathiController extends Controller
             }
         }
 
-        // Active modules (admin-managed) for the Module dropdown
-        $modules = Module::active()->orderBy('name')->get(['id', 'name']);
+        // Module dropdown: only active modules the admin gave this user UPLOAD permission for
+        $modules = $this->allowedModules()
+            ->map(fn ($name, $id) => ['id' => (int) $id, 'name' => $name])
+            ->values();
 
         return view('bhu_bharathi', [
             'mandals'     => $mandals,
@@ -128,7 +134,7 @@ class BhuBharathiController extends Controller
         }
 
         $prefix   = $this->keyPrefix($mandal, $village);
-        $modules  = Module::active()->pluck('name', 'id');   // [id => name]
+        $modules  = $this->allowedModules();                 // [id => name] — admin-permitted, active
         $errors   = [];
         $cleaned  = [];
         $seenApp  = [];
@@ -140,8 +146,10 @@ class BhuBharathiController extends Controller
             $appNo  = trim((string) ($row['application_number'] ?? ''));
             $key    = (string) ($row['r2Key'] ?? '');
 
-            if (!$moduleId || !$modules->has($moduleId)) {
-                $errors[] = "Row {$n}: Please select a valid module.";
+            if (!$moduleId) {
+                $errors[] = "Row {$n}: Please select a module.";
+            } elseif (!$modules->has($moduleId)) {
+                $errors[] = "Row {$n}: You do not have permission to upload for the selected module.";
             }
             if ($appNo === '' || mb_strlen($appNo) > 100) {
                 $errors[] = "Row {$n}: Application number is required (max 100 characters).";
@@ -220,13 +228,18 @@ class BhuBharathiController extends Controller
         }
 
         $data = $request->validate([
-            // Must be an active module — or the module the record already has
+            // Must be a module this user may upload (active) — or the module the record already has
             'module_id'          => [
                 'required', 'integer',
-                Rule::exists('modules', 'id')->where(function ($q) use ($bhuBharathi) {
-                    $q->where('is_active', true)
-                      ->when($bhuBharathi->module_id, fn ($qq) => $qq->orWhere('id', $bhuBharathi->module_id));
-                }),
+                function ($attribute, $value, $fail) use ($bhuBharathi) {
+                    $value = (int) $value;
+                    if ($value === (int) $bhuBharathi->module_id) {
+                        return; // keeping the current module is always fine
+                    }
+                    if (!$this->allowedModules()->has($value)) {
+                        $fail('You do not have permission to use the selected module.');
+                    }
+                },
             ],
             'application_number' => [
                 'required', 'string', 'max:100',
@@ -240,7 +253,6 @@ class BhuBharathiController extends Controller
         ], [
             'application_number.unique' => 'This application number already exists.',
             'module_id.required'        => 'Please select a module.',
-            'module_id.exists'          => 'Please select a valid module.',
         ]);
 
         $bhuBharathi->loadMissing('mandal', 'village');
@@ -301,7 +313,7 @@ class BhuBharathiController extends Controller
 
     // ── OPEN PDF ─────────────────────────────────────────────────────────────
     public function showFile(BhuBharathi $bhuBharathi)
-    {
+    {   
         abort_unless($this->canViewRecord($bhuBharathi), 403, 'You do not have permission to view this file.');
         abort_if(!$bhuBharathi->file_path, 404, 'No file uploaded for this record.');
 
@@ -475,6 +487,29 @@ class BhuBharathiController extends Controller
         return $this->hasPerm('edit', (int) $r->mandal_id);
     }
 
+    /** Module IDs the admin allowed this user to upload (bb_upload_module_ids). */
+    private function uploadModuleIds(): array
+    {
+        if ($this->moduleCache !== null) {
+            return $this->moduleCache;
+        }
+
+        /** @var \App\Models\UserDocumentPermission|null $p */
+        $p = Auth::user()?->documentPermission;
+
+        return $this->moduleCache = $p?->getBbUploadModuleIds() ?? [];
+    }
+
+    /** Active modules this user may upload, as [id => name]. */
+    private function allowedModules()
+    {
+        $ids = $this->uploadModuleIds();
+
+        return empty($ids)
+            ? collect()
+            : Module::active()->whereIn('id', $ids)->orderBy('name')->pluck('name', 'id');
+    }
+
     private function resolveLocation(string $mandalSlug, string $villageSlug): array
     {
         $mandal = Mandal::where('slug', $mandalSlug)->where('is_active', true)->firstOrFail();
@@ -553,6 +588,10 @@ class BhuBharathiController extends Controller
             'use_path_style_endpoint' => $c['use_path_style_endpoint'] ?? false,
         ]);
     }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    //  ADMIN — list of all disposals + open any PDF (routes in the is_admin group)
+    // ═════════════════════════════════════════════════════════════════════════
 
     public function adminIndex(Request $request)
     {

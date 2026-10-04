@@ -230,7 +230,7 @@
 
     @if($modules->isEmpty())
       <div class="alert alert-error">
-        No Bhu Bharathi modules have been added yet. Please ask the administrator to add modules before uploading disposals.
+        You have not been given upload permission for any Bhu Bharathi module. Please contact the administrator.
       </div>
     @endif
 
@@ -378,7 +378,7 @@
 ══════════════════════════════════════════════════════════════════ */
 const CURRENT_USER_ID = {{ (int) auth()->id() }};
 const PERMS = @json($permissions);   // { upload:[ids], view:[ids], edit:[ids] }
-const MODULES = @json($modules);     // [{ id, name }] — active modules managed by admin
+const MODULES = @json($modules);     // [{ id, name }] — active modules the admin allowed this user to upload
 
 const ROUTES = {
   records:   @json(route('bhu-bharathi.records')),
@@ -446,14 +446,15 @@ async function postJson(url, body, method = 'POST') {
 }
 
 /**
- * Fill a <select> with the admin-managed modules.
- * `extra` lets the edit modal keep a module that has since been deactivated.
+ * Fill a <select> with the modules this user may upload.
+ * `extra` lets the edit modal keep the record's current module even when it
+ * is not in the user's list (not permitted, or deactivated).
  */
 function fillModuleSelect(sel, selectedId, extra = null) {
   sel.innerHTML = '<option value="">— Select Module —</option>';
   const list = [...MODULES];
   if (extra && extra.id && !list.some(m => m.id === extra.id)) {
-    list.push({ id: extra.id, name: extra.name + ' (inactive)' });
+    list.push({ id: extra.id, name: extra.name + ' (current)' });
   }
   list.forEach(m => {
     const o = document.createElement('option');
@@ -581,6 +582,8 @@ function onVillageChange() {
 
   if (can('upload')) {
     document.getElementById('new-section').style.display = 'block';
+    document.getElementById('add-row-btn').disabled = MODULES.length === 0;
+    document.getElementById('submit-btn').disabled  = MODULES.length === 0;
     addRow();
   } else {
     document.getElementById('no-upload-box').style.display = 'block';

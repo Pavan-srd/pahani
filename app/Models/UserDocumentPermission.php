@@ -30,6 +30,9 @@ class UserDocumentPermission extends Model
         'bb_upload_mandal_ids',
         'bb_view_mandal_ids',
         'bb_edit_mandal_ids',
+
+        // Bhu Bharathi Disposals — modules the user may upload
+        'bb_upload_module_ids',
     ];
 
     /**
@@ -48,6 +51,9 @@ class UserDocumentPermission extends Model
         'bb_upload_mandal_ids' => 'array',
         'bb_view_mandal_ids'   => 'array',
         'bb_edit_mandal_ids'   => 'array',
+
+        // Bhu Bharathi Disposals — modules the user may upload
+        'bb_upload_module_ids' => 'array',
     ];
 
     /**
@@ -238,5 +244,24 @@ class UserDocumentPermission extends Model
     public function setBbEditMandalIds(array $mandalIds = [])
     {
         $this->update(['bb_edit_mandal_ids' => array_values(array_filter($mandalIds))]);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       BHU BHARATHI DISPOSALS — module upload permission
+    ══════════════════════════════════════════════════════════════ */
+
+    public function getBbUploadModuleIds(): array
+    {
+        return $this->normalizeIds($this->bb_upload_module_ids);
+    }
+
+    public function canBbUploadModule(int $moduleId): bool
+    {
+        return in_array($moduleId, $this->getBbUploadModuleIds(), true);
+    }
+
+    public function setBbUploadModuleIds(array $moduleIds = [])
+    {
+        $this->update(['bb_upload_module_ids' => array_values(array_filter($moduleIds))]);
     }
 }
