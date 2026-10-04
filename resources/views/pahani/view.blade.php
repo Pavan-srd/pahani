@@ -159,24 +159,8 @@
   </div>
 
   {{-- ── NAV ── --}}
-  <div class="page-nav">
-      <div class="nav-left">
-          <a class="nav-item" href="{{ route('pahani.index') }}">📂 Upload Documents</a>
-          <a class="nav-item active" href="{{ route('pahani.view') }}">📋 View Records</a>
-          <a class="nav-item" href="#">🔍 Search</a>
-          <a class="nav-item" href="{{ route('reports.user') }}">📊 Reports</a>
-          <a class="nav-item" href="#">⚙️ Settings</a>
-      </div>
+  @include('partials.user-nav', ['active' => 'pahani-upload'])   {{-- in pahani.blade.php --}}
 
-      <div class="nav-right">
-          <form id="logoutForm" method="POST" action="{{ route('logout') }}">
-              @csrf
-              <button type="button" class="logout-btn" onclick="confirmLogout()">
-                  🚪 Logout
-              </button>
-          </form>
-      </div>
-  </div>
 
   <div class="main-body">
 

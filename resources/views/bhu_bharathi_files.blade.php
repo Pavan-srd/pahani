@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Bhu Bharathi Disposals — Land Record Digitalization</title>
+  <title>My Bhu Bharathi Disposals — Land Record Digitalization</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,sans-serif;font-size:12px;background:#f0f4f8;color:#1a1a2e}
@@ -159,29 +159,26 @@
       .upload-progress-rows{grid-template-columns:1fr}
       .gov-title-block .dept-name{font-size:14px}
     }
+  
+    /* ── MY FILES PAGE ── */
+    .search-bar{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+    .search-bar .field-group{flex:1;min-width:220px}
+    .summary-line{font-size:10px;color:#666;margin-top:8px}
+    .app-no{font-family:Consolas,monospace;font-weight:bold;color:#1a1a2e}
+    .mod-tag{display:inline-block;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:bold}
+    mark{background:#fff3a8;padding:0 1px}
+    .pager{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:#555}
+    .pager-links{display:flex;gap:4px;flex-wrap:wrap}
+    .pager-links a,.pager-links span{min-width:30px;text-align:center;padding:5px 9px;border:1px solid #c8dce9;border-radius:2px;background:white;color:#154360;text-decoration:none;font-weight:bold}
+    .pager-links a:hover{background:#eaf2f8}
+    .pager-links .current{background:#154360;color:white;border-color:#154360}
+    .pager-links .disabled{color:#bbb;background:#f6f6f6}
   </style>
 </head>
 <body>
 <div class="portal-wrap">
 
   <div class="toast" id="toast"></div>
-
-  {{-- UPLOAD PROGRESS PANEL (TOP OF PAGE) --}}
-  <div id="upload-progress-container">
-    <div class="upload-progress-content">
-      <div class="upload-progress-header">
-        <div class="upload-progress-spinner"></div>
-        <div class="upload-progress-title">
-          <span id="upload-progress-label">Uploading Files…</span>
-          <span class="percent"><span id="overall-progress-pct">0</span>%</span>
-        </div>
-      </div>
-      <div class="upload-progress-main-bar">
-        <div class="upload-progress-main-fill" id="overall-progress-bar"></div>
-      </div>
-      <div class="upload-progress-rows" id="upload-progress-rows-container"></div>
-    </div>
-  </div>
 
   {{-- ── HEADER ── --}}
   <div class="gov-header">
@@ -196,125 +193,166 @@
       </div>
     </div>
     <div class="gov-subtitle-bar">
-      BHU BHARATHI DISPOSALS — Sangareddy District ({{ auth()->user()?->name }}, {{ auth()->user()?->getMandal?->name }})
+      MY BHU BHARATHI DISPOSALS — Sangareddy District ({{ auth()->user()?->name }}, {{ auth()->user()?->getMandal?->name }})
     </div>
   </div>
 
   {{-- ── NAV ── --}}
-  @include('partials.user-nav', ['active' => 'bb-upload'])
+  @include('partials.user-nav', ['active' => 'bb-view'])
 
   <div class="main-body">
 
     <div class="page-heading">
-      <h2>🗂️ Bhu Bharathi Disposals</h2>
-      <a href="{{ route('bhu-bharathi.my-files') }}" style="font-size:10px;color:#154360;font-weight:bold;text-decoration:none">📋 View my uploaded disposals →</a>
+      <h2>📋 My Bhu Bharathi Disposals</h2>
+      <a href="{{ route('bhu-bharathi.index') }}" style="font-size:10px;color:#154360;font-weight:bold;text-decoration:none">📤 Upload new disposals →</a>
     </div>
 
     <div class="breadcrumb">
-      <a href="{{ route('home') }}">Home</a> › <a href="#">Bhu Bharathi</a> › Upload Disposals
+      <a href="{{ route('home') }}">Home</a> › <a href="#">Bhu Bharathi</a> › View Disposals
     </div>
 
-    @if($modules->isEmpty())
-      <div class="alert alert-error">
-        You have not been given upload permission for any Bhu Bharathi module. Please contact the administrator.
-      </div>
-    @endif
-
-    @if($mandals->isEmpty())
-      <div class="alert alert-error">
-        You have not been given Bhu Bharathi upload permission for any mandal. Please contact the administrator.
-      </div>
-    @endif
-
-    <div class="notice-bar">
-      ℹ️&nbsp;<span>Select Mandal &amp; Village, then add one row per application — select the <strong>Module</strong>, enter the <strong>Application Number</strong> and attach the <strong>PDF</strong>. All PDFs upload in parallel when you submit.</span>
-    </div>
-
-    {{-- ── SECTION 1: MANDAL & VILLAGE ── --}}
+    {{-- ── SEARCH ── --}}
     <div class="section-card">
       <div class="section-header">
-        <span class="sec-num">1</span> Revenue Mandal &amp; Village Details
+        <span class="sec-num">1</span> Search
       </div>
       <div class="section-body">
-        <div class="form-row">
+        <form method="GET" action="{{ route('bhu-bharathi.my-files') }}" class="search-bar">
           <div class="field-group">
-            <label class="field-label" for="mandal-select">Name of Mandal <span class="req">*</span></label>
-            <div class="field-hint">Only mandals with Bhu Bharathi upload permission are listed</div>
-            <select id="mandal-select" onchange="onMandalChange()" {{ $mandals->isEmpty() ? 'disabled' : '' }}>
-              <option value="">— Select Mandal —</option>
-              @foreach($mandals as $mandal)
-                <option value="{{ $mandal->slug }}" data-id="{{ $mandal->id }}">{{ $mandal->name }}</option>
-              @endforeach
-            </select>
-            <div class="perm-chips" id="perm-chips"></div>
+            <label class="field-label" for="q">File / Application Number</label>
+            <input type="text" class="txt" id="q" name="q" value="{{ $q }}" maxlength="100" placeholder="Type full or part of the application number…" autofocus>
           </div>
-          <div class="field-group">
-            <label class="field-label" for="village-select">Name of Village <span class="req">*</span></label>
-            <div class="field-hint">Select village within the Mandal</div>
-            <select id="village-select" disabled onchange="onVillageChange()">
-              <option value="">— First Select Mandal —</option>
-            </select>
-            <div class="loading-bar" id="village-loading"><div class="spinner"></div> Loading villages…</div>
-          </div>
+          <button type="submit" class="btn-primary" style="padding:7px 20px">🔎 Search</button>
+          @if($q !== '')
+            <a href="{{ route('bhu-bharathi.my-files') }}" class="btn-secondary" style="text-decoration:none;padding:6px 16px">✕ Clear</a>
+          @endif
+        </form>
+        <div class="summary-line">
+          @if($q !== '')
+            {{ $records->total() }} result(s) for “<strong>{{ $q }}</strong>”
+          @else
+            You have uploaded {{ $records->total() }} disposal(s) in total.
+          @endif
         </div>
       </div>
     </div>
 
-    {{-- ── SECTION 2: NEW DISPOSALS ── --}}
-    <div class="section-card" id="new-section" style="display:none">
+    {{-- ── LIST ── --}}
+    <div class="section-card">
       <div class="section-header">
-        <span class="sec-num">2</span> New Disposal Records
-        <span class="sec-right">PDF only</span>
+        <span class="sec-num">2</span> Uploaded Disposals
+        <span class="sec-right">
+          @if($records->total())
+            Showing {{ $records->firstItem() }}–{{ $records->lastItem() }} of {{ $records->total() }}
+          @endif
+        </span>
       </div>
       <div class="section-body">
-        <div id="js-error-anchor"></div>
         <div class="table-wrap">
           <table class="doc-table">
             <thead>
               <tr>
                 <th style="width:5%">#</th>
-                <th style="width:26%">Module <span style="color:#c0392b">*</span></th>
-                <th style="width:24%">Application Number <span style="color:#c0392b">*</span></th>
-                <th>Upload PDF <span style="color:#c0392b">*</span></th>
-                <th style="width:7%;text-align:center">Action</th>
+                <th>Mandal</th>
+                <th>Village</th>
+                <th>Module</th>
+                <th>File / Application No.</th>
+                <th>PDF</th>
+                <th>Uploaded</th>
+                <th style="width:14%;text-align:center">Actions</th>
               </tr>
             </thead>
-            <tbody id="new-tbody"></tbody>
+            <tbody id="files-tbody"></tbody>
           </table>
         </div>
-        <button type="button" class="add-row-btn" id="add-row-btn" onclick="addRow()">+ Add Disposal Record</button>
-        <div class="row-info" id="row-info"></div>
-      </div>
 
-      <div class="form-footer">
-        <button type="button" class="btn-secondary" onclick="resetForm()">🔄 Reset Form</button>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-size:10px;color:#666">Fields marked <span style="color:#c0392b;font-weight:bold">*</span> are mandatory</span>
-          <button type="button" class="btn-primary" id="submit-btn" onclick="submitForm()">✔ Submit &amp; Register</button>
-        </div>
-      </div>
-    </div>
+        {{-- ── PAGINATION ── --}}
+        @if($records->hasPages())
+          @php
+            $cur = $records->currentPage();
+            $last = $records->lastPage();
+            $from = max(1, $cur - 2);
+            $to = min($last, $cur + 2);
+          @endphp
+          <div class="pager">
+            <div>Page {{ $cur }} of {{ $last }}</div>
+            <div class="pager-links">
+              @if($records->onFirstPage())
+                <span class="disabled">‹ Prev</span>
+              @else
+                <a href="{{ $records->previousPageUrl() }}">‹ Prev</a>
+              @endif
 
-    <div class="info-box" id="no-upload-box" style="display:none;margin-bottom:14px">
-      🔒 You do not have upload permission for this mandal.
-      <a href="{{ route('bhu-bharathi.my-files') }}" style="color:#154360;font-weight:bold">View your uploaded disposals →</a>
+              @if($from > 1)
+                <a href="{{ $records->url(1) }}">1</a>
+                @if($from > 2)<span class="disabled">…</span>@endif
+              @endif
+              @for($i = $from; $i <= $to; $i++)
+                @if($i === $cur)
+                  <span class="current">{{ $i }}</span>
+                @else
+                  <a href="{{ $records->url($i) }}">{{ $i }}</a>
+                @endif
+              @endfor
+              @if($to < $last)
+                @if($to < $last - 1)<span class="disabled">…</span>@endif
+                <a href="{{ $records->url($last) }}">{{ $last }}</a>
+              @endif
+
+              @if($records->hasMorePages())
+                <a href="{{ $records->nextPageUrl() }}">Next ›</a>
+              @else
+                <span class="disabled">Next ›</span>
+              @endif
+            </div>
+          </div>
+        @endif
+      </div>
     </div>
 
   </div>{{-- /main-body --}}
 </div>{{-- /portal-wrap --}}
+
+{{-- ── EDIT MODAL ── --}}
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this && !editState.busy) closeEditModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>✎ Edit Disposal <span id="edit-title-id"></span></h3>
+      <button class="modal-close" type="button" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label class="field-label" for="edit-module">Module <span class="req">*</span></label>
+        <select id="edit-module"></select>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="edit-appno">Application Number <span class="req">*</span></label>
+        <input type="text" class="txt" id="edit-appno" maxlength="100">
+      </div>
+      <div class="field-group">
+        <label class="field-label">PDF</label>
+        <div id="edit-upload-cell"></div>
+        <div class="field-hint">Leave empty to keep the saved PDF.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button type="button" class="btn-primary" id="edit-save-btn" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 /* ══════════════════════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════════════════════ */
-const CURRENT_USER_ID = {{ (int) auth()->id() }};
-const PERMS = @json($permissions);   // { upload:[ids], view:[ids], edit:[ids] }
-const MODULES = @json($modules);     // [{ id, name }] — active modules the admin allowed this user to upload
+const MODULES = @json($modules);   // modules this user may upload (edit-popup dropdown)
+const SEARCH  = @json($q);
+const FIRST_NO = {{ (int) ($records->firstItem() ?? 1) }};
 
 const ROUTES = {
-  myFiles:   @json(route('bhu-bharathi.my-files')),
-  store:     @json(route('bhu-bharathi.store')),
+  update:    @json(url('/bhu-bharathi')),              // + '/{id}'
   presign:   @json(route('bhu-bharathi.presign')),
   mpInit:    @json(route('bhu-bharathi.multipart.init')),
   mpSign:    @json(route('bhu-bharathi.multipart.sign-part')),
@@ -322,29 +360,28 @@ const ROUTES = {
   mpAbort:   @json(route('bhu-bharathi.multipart.abort')),
 };
 
-const PART_SIZE            = 10 * 1024 * 1024;  // 10MB per part
-const MULTIPART_THRESHOLD  = 20 * 1024 * 1024;  // above this, use multipart
+const PART_SIZE            = 10 * 1024 * 1024;
+const MULTIPART_THRESHOLD  = 20 * 1024 * 1024;
 const MAX_CONCURRENT_PARTS = 4;
 
-/* ══════════════════════════════════════════════════════════════════
-   STATE
-══════════════════════════════════════════════════════════════════ */
-const state = {
-  mandal:  null,   // { id, slug, name }
-  village: null,   // { id, slug, name }
-  rows:    [],     // { id, moduleId, appNo, file, r2Key, progress }
-};
-let rowSeq = 0;
+// state.saved keeps the name used by the edit-popup functions
+const state = { saved: @json($rows) };
 
 /* ══════════════════════════════════════════════════════════════════
-   GENERIC HELPERS
+   HELPERS + DIRECT-TO-R2 UPLOAD  (same code as the upload page)
 ══════════════════════════════════════════════════════════════════ */
+function refreshInfo() {}   // upload-page counter; not used here
+
 function csrfToken() { return document.querySelector('meta[name=csrf-token]').content; }
-function can(type) { return !!state.mandal && PERMS[type].map(Number).includes(Number(state.mandal.id)); }
+
 function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
 function getFileExt(file) { return (file.name.split('.').pop() || '').toLowerCase(); }
+
 function isPdf(file) { return getFileExt(file) === 'pdf'; }
+
 function shortName(n) { return n.length > 34 ? n.slice(0, 31) + '…' : n; }
+
 function humanSize(b) {
   if (!b) return '';
   const u = ['B','KB','MB','GB']; let i = 0;
@@ -395,9 +432,6 @@ function fillModuleSelect(sel, selectedId, extra = null) {
   });
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   DIRECT-TO-R2 UPLOAD (single PUT or multipart) — same flow as Pahani
-══════════════════════════════════════════════════════════════════ */
 function putWithProgress(url, blob, headers, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -460,146 +494,6 @@ function uploadPdf(mandal, village, file, onProgress) {
     : uploadSingle(mandal, village, file, onProgress);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   MANDAL / VILLAGE
-══════════════════════════════════════════════════════════════════ */
-function onMandalChange() {
-  const sel = document.getElementById('mandal-select');
-  const opt = sel.options[sel.selectedIndex];
-  const villageSel = document.getElementById('village-select');
-
-  state.mandal  = opt?.dataset?.id ? { id: Number(opt.dataset.id), slug: opt.value, name: opt.textContent.trim() } : null;
-  state.village = null;
-  villageSel.innerHTML = '<option value="">— Select Village —</option>';
-  villageSel.disabled = true;
-  clearRows();
-  hideSections();
-  renderPermChips();
-
-  if (!state.mandal) return;
-
-  document.getElementById('village-loading').classList.add('show');
-  fetch(`/api/mandals/${state.mandal.id}/villages`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(r => r.json())
-    .then(villages => {
-      villages.forEach(v => {
-        const o = document.createElement('option');
-        o.value = v.slug; o.textContent = v.name; o.dataset.id = v.id;
-        villageSel.appendChild(o);
-      });
-      villageSel.disabled = false;
-    })
-    .catch(() => showToast('Failed to load villages. Please refresh.', true))
-    .finally(() => document.getElementById('village-loading').classList.remove('show'));
-}
-
-function onVillageChange() {
-  const sel = document.getElementById('village-select');
-  const opt = sel.options[sel.selectedIndex];
-  state.village = opt?.dataset?.id ? { id: Number(opt.dataset.id), slug: opt.value, name: opt.textContent.trim() } : null;
-
-  clearRows();
-  hideSections();
-  if (!state.village) return;
-
-  if (can('upload')) {
-    document.getElementById('new-section').style.display = 'block';
-    document.getElementById('add-row-btn').disabled = MODULES.length === 0;
-    document.getElementById('submit-btn').disabled  = MODULES.length === 0;
-    addRow();
-  } else {
-    document.getElementById('no-upload-box').style.display = 'block';
-  }
-}
-
-function renderPermChips() {
-  const box = document.getElementById('perm-chips');
-  if (!state.mandal) { box.innerHTML = ''; return; }
-  box.innerHTML = [['upload','📤 Upload'], ['view','👁 View'], ['edit','✎ Edit']]
-    .map(([t, l]) => `<span class="chip ${can(t) ? 'on' : 'off'}">${l}</span>`).join('');
-}
-
-function hideSections() {
-  ['new-section', 'no-upload-box'].forEach(id => document.getElementById(id).style.display = 'none');
-  document.getElementById('js-error-box')?.remove();
-  document.getElementById('js-success-box')?.remove();
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   NEW ROWS
-══════════════════════════════════════════════════════════════════ */
-function clearRows() { state.rows = []; renderRows(); }
-
-function addRow() {
-  state.rows.push({ id: 'r' + (++rowSeq), moduleId: '', appNo: '', file: null, r2Key: null, progress: 0 });
-  renderRows();
-  const last = state.rows[state.rows.length - 1];
-  document.getElementById('module-' + last.id)?.focus();
-}
-
-function removeRow(id) {
-  state.rows = state.rows.filter(r => r.id !== id);
-  if (state.rows.length === 0) addRow(); else renderRows();
-}
-
-function setRowFile(row, file) {
-  row.file = file;
-  row.r2Key = null;     // a new file always needs a fresh upload
-  row.progress = 0;
-}
-
-function renderRows() {
-  const tbody = document.getElementById('new-tbody');
-  tbody.innerHTML = '';
-
-  state.rows.forEach((row, idx) => {
-    const tr = document.createElement('tr');
-
-    // # 
-    const tdNo = document.createElement('td');
-    tdNo.textContent = idx + 1;
-
-    // Module
-    const tdMod = document.createElement('td');
-    const mod = document.createElement('select');
-    mod.id = 'module-' + row.id;
-    fillModuleSelect(mod, row.moduleId);
-    mod.addEventListener('change', () => { row.moduleId = mod.value; mod.classList.remove('invalid'); });
-    tdMod.appendChild(mod);
-
-    // Application number
-    const tdApp = document.createElement('td');
-    const app = document.createElement('input');
-    app.type = 'text'; app.className = 'txt'; app.id = 'appno-' + row.id;
-    app.maxLength = 100; app.placeholder = 'Enter application number'; app.value = row.appNo;
-    app.addEventListener('input', () => { row.appNo = app.value; app.classList.remove('invalid'); });
-    tdApp.appendChild(app);
-
-    // Upload PDF
-    const tdUp = document.createElement('td');
-    tdUp.appendChild(buildUploadWidget({
-      progressId: row.id,
-      currentFile: () => row.file,
-      onPick: f => setRowFile(row, f),
-      onClear: () => setRowFile(row, null),
-    }));
-
-    // Action
-    const tdAct = document.createElement('td');
-    tdAct.style.textAlign = 'center';
-    const del = document.createElement('button');
-    del.type = 'button'; del.className = 'btn-danger-sm'; del.title = 'Remove row'; del.innerHTML = '✕';
-    del.onclick = () => removeRow(row.id);
-    tdAct.appendChild(del);
-
-    tr.append(tdNo, tdMod, tdApp, tdUp, tdAct);
-    tbody.appendChild(tr);
-  });
-
-  document.getElementById('row-info').textContent =
-    `${state.rows.length} new record(s) | ${state.rows.filter(r => r.file).length} PDF(s) attached`;
-}
-
 /**
  * Upload zone + selected-file tag + inline progress bar.
  * Used by the new-rows table and the edit modal.
@@ -644,35 +538,6 @@ function buildUploadWidget({ progressId, currentFile, onPick, onClear, replaceLa
   return wrap;
 }
 
-function refreshInfo() {
-  const info = document.getElementById('row-info');
-  if (info) info.textContent = `${state.rows.length} new record(s) | ${state.rows.filter(r => r.file).length} PDF(s) attached`;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   PROGRESS UI
-══════════════════════════════════════════════════════════════════ */
-function showUploadProgress(items, label = 'Uploading Files…') {
-  document.getElementById('upload-progress-label').textContent = label;
-  document.getElementById('upload-progress-rows-container').innerHTML = items.map(it => `
-    <div class="upload-progress-row">
-      <div class="upload-progress-row-name">${escapeHtml(it.label)}</div>
-      <div class="upload-progress-row-bar"><div class="upload-progress-row-fill" id="upload-row-progress-${it.id}"></div></div>
-      <div class="upload-progress-row-percent"><span id="upload-row-pct-${it.id}">0</span>%</div>
-    </div>`).join('');
-  updateOverallProgress(0);
-  document.getElementById('upload-progress-container').classList.add('show');
-}
-
-function hideUploadProgress() {
-  document.getElementById('upload-progress-container').classList.remove('show');
-}
-
-function updateOverallProgress(pct) {
-  document.getElementById('overall-progress-bar').style.width = pct + '%';
-  document.getElementById('overall-progress-pct').textContent = Math.round(pct);
-}
-
 function updateRowProgress(id, pct, failed = false) {
   const wrap = document.getElementById('progress-wrap-' + id);
   if (wrap) {
@@ -686,158 +551,156 @@ function updateRowProgress(id, pct, failed = false) {
   if (p) p.textContent = failed ? '✕' : Math.round(pct);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   VALIDATION
-══════════════════════════════════════════════════════════════════ */
-function validateRows() {
-  const errors = [];
-  const seen = new Map();
-
-  state.rows.forEach((row, i) => {
-    const n = i + 1;
-    const app = row.appNo.trim();
-    const appKey = app.toLowerCase();
-
-    if (!row.moduleId) { errors.push(`Row ${n}: Please select a module.`); markInvalid('module-' + row.id); }
-    if (!app) { errors.push(`Row ${n}: Application number is required.`); markInvalid('appno-' + row.id); }
-    else if (seen.has(appKey)) { errors.push(`Row ${n}: Application number "${app}" is repeated in row ${seen.get(appKey)}.`); markInvalid('appno-' + row.id); }
-    if (app) seen.set(appKey, n);
-    if (!row.file && !row.r2Key) errors.push(`Row ${n}: Please upload the PDF.`);
-  });
-  return errors;
-}
-
 function markInvalid(id) { document.getElementById(id)?.classList.add('invalid'); }
 
-function renderFormErrors(errors) {
-  document.getElementById('js-success-box')?.remove();
-  let box = document.getElementById('js-error-box');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'js-error-box';
-    box.className = 'alert alert-error';
-    document.getElementById('js-error-anchor').appendChild(box);
-  }
-  box.innerHTML = `<strong>Please fix the following errors:</strong>
-    <ul style="margin-top:5px;padding-left:16px">${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul>`;
-  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+/* ══════════════════════════════════════════════════════════════════
+   TABLE
+══════════════════════════════════════════════════════════════════ */
+function highlight(text) {
+  const safe = escapeHtml(text);
+  if (!SEARCH) return safe;
+  const q = escapeHtml(SEARCH).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return safe.replace(new RegExp(q, 'gi'), m => `<mark>${m}</mark>`);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   SUBMIT — parallel PDF uploads to R2, then one small JSON request
-══════════════════════════════════════════════════════════════════ */
-async function submitForm() {
-  if (!state.mandal || !state.village) { showToast('Please select both Mandal and Village.', true); return; }
-  if (state.rows.length === 0) { showToast('Add at least one disposal record.', true); return; }
+const editState = { record: null, file: null, busy: false };
 
-  document.getElementById('js-error-box')?.remove();
-  const errors = validateRows();
-  if (errors.length) { renderFormErrors(errors); return; }
+/** View button: enabled only with Bhu Bharathi VIEW permission (and a saved PDF). */
+function viewButton(r) {
+  if (!r.has_file) {
+    return '<button type="button" class="btn-link" disabled title="No PDF uploaded">👁 View</button>';
+  }
+  if (!r.can_view || !r.file_url) {
+    return '<button type="button" class="btn-link" disabled title="No Bhu Bharathi view permission for this mandal">👁 View</button>';
+  }
+  return `<a class="btn-link" href="${r.file_url}" target="_blank" rel="noopener">👁 View</a>`;
+}
 
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
+function openEditModal(id) {
+  const rec = state.saved.find(r => r.id === id);
+  if (!rec || !rec.can_edit) return;
+  editState.record = rec; editState.file = null; editState.busy = false;
 
-  const mandal  = state.mandal.slug;
-  const village = state.village.slug;
+  document.getElementById('edit-title-id').textContent = '#' + rec.id;
+  fillModuleSelect(document.getElementById('edit-module'), rec.module_id,
+                   rec.module_id ? { id: rec.module_id, name: rec.module } : null);
+  document.getElementById('edit-appno').value  = rec.application_number;
+  ['edit-module', 'edit-appno'].forEach(i => document.getElementById(i).classList.remove('invalid'));
 
-  // Rows whose file is not yet in R2 (a previous failed submit may have uploaded some already)
-  const pending = state.rows.filter(r => r.file && !r.r2Key);
-  const totalBytes = pending.reduce((s, r) => s + r.file.size, 0) || 1;
-  const loaded = {};
-  const recompute = () => updateOverallProgress(
-    Object.entries(loaded).reduce((s, [id, pct]) => s + (state.rows.find(r => r.id === id)?.file?.size || 0) * pct / 100, 0) / totalBytes * 100
-  );
+  const cell = document.getElementById('edit-upload-cell');
+  cell.innerHTML = '';
+  if (rec.has_file) {
+    const saved = document.createElement('div');
+    saved.className = 'saved-file';
+    saved.innerHTML = `<span class="saved-file-label">Saved</span> 📄 ${escapeHtml(rec.file_name || 'document.pdf')}
+      <span style="margin-left:auto;font-size:9px;color:#888">Replace below ↓</span>`;
+    cell.appendChild(saved);
+  }
+  cell.appendChild(buildUploadWidget({
+    progressId: 'edit',
+    currentFile: () => editState.file,
+    onPick: f => editState.file = f,
+    onClear: () => editState.file = null,
+    replaceLabel: rec.has_file ? 'Click to replace PDF' : 'Click to upload PDF',
+  }));
+
+  document.getElementById('edit-modal').classList.add('show');
+  document.getElementById('edit-module').focus();
+}
+
+function closeEditModal() {
+  if (editState.busy) return;
+  document.getElementById('edit-modal').classList.remove('show');
+  editState.record = null; editState.file = null;
+}
+
+async function saveEdit() {
+  const rec = editState.record;
+  if (!rec || editState.busy) return;
+
+  const moduleId = document.getElementById('edit-module').value;
+  const appNo    = document.getElementById('edit-appno').value.trim();
+  if (!moduleId) { markInvalid('edit-module'); showToast('Please select a module.', true); return; }
+  if (!appNo)  { markInvalid('edit-appno');  showToast('Application number is required.', true); return; }
+
+  const dup = state.saved.some(s => s.id !== rec.id && String(s.application_number).trim().toLowerCase() === appNo.toLowerCase());
+  if (dup) { markInvalid('edit-appno'); showToast(`Application number "${appNo}" already exists.`, true); return; }
+
+  const btn = document.getElementById('edit-save-btn');
+  editState.busy = true; btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    if (pending.length) {
-      showUploadProgress(pending.map(r => ({ id: r.id, label: `${r.appNo.trim()} — ${r.file.name}` })));
+    const payload = { module_id: Number(moduleId), application_number: appNo };
 
-      // Step 1 — every PDF straight to R2, in parallel
-      const results = await Promise.allSettled(pending.map(async row => {
-        try {
-          const key = await uploadPdf(mandal, village, row.file, pct => {
-            loaded[row.id] = pct; updateRowProgress(row.id, pct); recompute();
-          });
-          row.r2Key = key;
-          loaded[row.id] = 100; updateRowProgress(row.id, 100); recompute();
-        } catch (e) {
-          updateRowProgress(row.id, 0, true);
-          throw new Error(`${row.appNo.trim() || 'Row'}: ${e.message}`);
-        }
-      }));
-
-      const failed = results.filter(r => r.status === 'rejected').map(r => r.reason.message);
-      if (failed.length) {
-        hideUploadProgress();
-        renderFormErrors(['Some PDFs failed to upload. Submit again to retry only the failed ones.', ...failed]);
-        return;
-      }
-      updateOverallProgress(100);
+    if (editState.file) {
+      const f = editState.file;
+      const key = await uploadPdf(rec.mandal_slug, rec.village_slug, f, pct => updateRowProgress('edit', pct));
+      updateRowProgress('edit', 100);
+      Object.assign(payload, { r2Key: key, fileName: f.name, fileSize: f.size });
     }
 
-    // Step 2 — tiny JSON request, no files attached
-    document.getElementById('upload-progress-label').textContent = 'Saving records…';
-    const { res, data } = await postJson(ROUTES.store, {
-      mandal, village,
-      records: state.rows.map(r => ({
-        module_id:          Number(r.moduleId),
-        application_number: r.appNo.trim(),
-        r2Key:              r.r2Key,
-        fileName:           r.file?.name || null,
-        fileSize:           r.file?.size || null,
-      })),
-    });
-    hideUploadProgress();
+    const { res, data } = await postJson(`${ROUTES.update}/${rec.id}`, payload, 'PUT');
 
     if (res.ok && data.success) {
-      showToast('✔ ' + (data.message || 'Disposals saved successfully.'));
-      showSuccessBox(data.message || 'Disposals saved successfully.');
-      clearRows();
-      addRow();
+      const idx = state.saved.findIndex(s => s.id === rec.id);
+      if (idx > -1) state.saved[idx] = data.record;
+      renderSaved();
+      editState.busy = false;
+      closeEditModal();
+      showToast('✔ ' + (data.message || 'Disposal updated.'));
       return;
     }
 
     if (data.errors) {
-      renderFormErrors(Array.isArray(data.errors) ? data.errors : Object.values(data.errors).flat());
+      const list = Array.isArray(data.errors) ? data.errors : Object.values(data.errors).flat();
+      if (data.errors.application_number) markInvalid('edit-appno');
+      if (data.errors.module_id) markInvalid('edit-module');
+      showToast(list.join(' '), true);
     } else {
-      showToast(data.message || 'Submission failed.', true);
+      showToast(data.message || 'Update failed.', true);
     }
   } catch (err) {
-    hideUploadProgress();
+    updateRowProgress('edit', 0, true);
     showToast(err.message || 'Upload failed. Please try again.', true);
   } finally {
-    btn.disabled = false;
+    editState.busy = false; btn.disabled = false; btn.textContent = 'Save Changes';
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   SUCCESS BOX — link to the "View Bhu Bharathi Disposals" page
-══════════════════════════════════════════════════════════════════ */
-function showSuccessBox(msg) {
-  document.getElementById('js-error-box')?.remove();
-  let box = document.getElementById('js-success-box');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'js-success-box';
-    box.className = 'alert';
-    box.style.cssText = 'background:#e8f5e9;border-color:#27ae60;color:#1b5e20';
-    document.getElementById('js-error-anchor').appendChild(box);
+function renderSaved() {
+  const tbody = document.getElementById('files-tbody');
+  if (!state.saved.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${
+      SEARCH ? 'No disposals match this file number.' : 'You have not uploaded any Bhu Bharathi disposals yet.'
+    }</td></tr>`;
+    return;
   }
-  box.innerHTML = `✔ ${escapeHtml(msg)} &nbsp;<a href="${ROUTES.myFiles}" style="color:#154360;font-weight:bold">View my uploaded disposals →</a>`;
-  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  tbody.innerHTML = state.saved.map((r, i) => `
+    <tr>
+      <td>${FIRST_NO + i}</td>
+      <td>${escapeHtml(r.mandal_name || '—')}</td>
+      <td>${escapeHtml(r.village_name || '—')}</td>
+      <td><span class="mod-tag">${escapeHtml(r.module_name || r.module || '—')}</span></td>
+      <td><span class="app-no">${highlight(r.application_number)}</span></td>
+      <td>${r.has_file
+            ? `📄 ${escapeHtml(shortName(r.file_name || 'document.pdf'))}<div class="muted">${escapeHtml(r.file_size_human || '')}</div>`
+            : '<span class="muted">—</span>'}</td>
+      <td><span class="muted" style="font-size:11px;color:#333">${escapeHtml(r.created_at || '')}</span>
+          ${r.updated_at && r.updated_at !== r.created_at ? `<div class="muted">Updated ${escapeHtml(r.updated_at)}</div>` : ''}</td>
+      <td>
+        <div class="actions">
+          ${viewButton(r)}
+          ${r.can_edit
+            ? `<button type="button" class="btn-link" onclick="openEditModal(${r.id})">✎ Edit</button>`
+            : '<button type="button" class="btn-link" disabled title="No Bhu Bharathi edit permission for this mandal">✎ Edit</button>'}
+        </div>
+      </td>
+    </tr>`).join('');
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   RESET
-══════════════════════════════════════════════════════════════════ */
-function resetForm() {
-  if (!confirm('Reset the form? All unsaved rows will be lost.')) return;
-  clearRows();
-  if (state.village && can('upload')) addRow();
-  document.getElementById('js-error-box')?.remove();
-  document.getElementById('js-success-box')?.remove();
-}
-
+renderSaved();
+document.getElementById('edit-module').addEventListener('change', e => e.target.classList.remove('invalid'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEditModal(); });
 </script>
 </body>
 </html>

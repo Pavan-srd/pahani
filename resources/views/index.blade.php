@@ -103,21 +103,7 @@
   </div>
 
   {{-- ── NAV ── --}}
-  <div class="page-nav">
-    <div class="nav-left">
-      <a class="nav-item active" href="{{ route('home') }}">🏠 Dashboard</a>
-      <a class="nav-item" href="{{ route('pahani.index') }}">📂 Pahani Upload</a>
-      <a class="nav-item" href="{{ route('pahani.view') }}">📋 View Records</a>
-      <a class="nav-item" href="{{ route('bhu-bharathi.index') }}">🗂️ Bhu Bharathi Disposals</a>
-      <a class="nav-item" href="{{ route('reports.user') }}">📊 Reports</a>
-    </div>
-    <div class="nav-right">
-      <form id="logoutForm" method="POST" action="{{ route('logout') }}">
-        @csrf
-        <button type="button" class="logout-btn" onclick="confirmLogout()">🚪 Logout</button>
-      </form>
-    </div>
-  </div>
+  @include('partials.user-nav', ['active' => 'dashboard'])
 
   <div class="main-body">
 
@@ -195,6 +181,7 @@
         </div>
         <div class="card-actions">
           <a class="btn-go" href="{{ route('bhu-bharathi.index') }}">Go to Bhu Bharathi Upload →</a>
+          <a class="link-sec" href="{{ route('bhu-bharathi.my-files') }}">📋 View Disposals</a>
         </div>
       </div>
 
@@ -207,14 +194,5 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-function confirmLogout() {
-  Swal.fire({
-    title: 'Logout?', text: 'Are you sure you want to logout?', icon: 'warning',
-    showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Yes, Logout', cancelButtonText: 'Cancel'
-  }).then(r => { if (r.isConfirmed) document.getElementById('logoutForm').submit(); });
-}
-</script>
 </body>
 </html>

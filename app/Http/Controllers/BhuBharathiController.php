@@ -77,6 +77,37 @@ class BhuBharathiController extends Controller
         ]);
     }
 
+    // ── MY UPLOADED FILES (separate "View Bhu Bharathi Disposals" page) ───────
+    public function myFiles(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $records = BhuBharathi::with([
+                'mandal:id,name,slug',
+                'village:id,name,slug',
+                'moduleMaster:id,name',
+                'uploader:id,name',
+            ])
+            ->where('uploaded_by', Auth::id())
+            ->when($q !== '', function ($query) use ($q) {
+                // escape LIKE wildcards so "%" or "_" in a search are matched literally
+                $query->where('application_number', 'like', '%' . addcslashes($q, '%_\\') . '%');
+            })
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        // Rows for the table + edit popup (same shape as the AJAX records)
+        $rows = $records->getCollection()->map(fn (BhuBharathi $r) => $this->present($r))->values();
+
+        // Module dropdown in the edit popup: modules this user may upload
+        $modules = $this->allowedModules()
+            ->map(fn ($name, $id) => ['id' => (int) $id, 'name' => $name])
+            ->values();
+
+        return view('bhu_bharathi_files', compact('records', 'rows', 'modules', 'q'));
+    }
+
     // ── EXISTING RECORDS FOR A VILLAGE (AJAX) ────────────────────────────────
     public function records(Request $request): JsonResponse
     {
@@ -307,7 +338,7 @@ class BhuBharathiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Disposal updated successfully.',
-            'record'  => $this->present($bhuBharathi->fresh('uploader:id,name')),
+            'record'  => $this->present($bhuBharathi->fresh(['uploader:id,name', 'mandal:id,name,slug', 'village:id,name,slug', 'moduleMaster:id,name'])),
         ]);
     }
 
@@ -561,6 +592,11 @@ class BhuBharathiController extends Controller
             'id'                 => $r->id,
             'module_id'          => $r->module_id,
             'module'             => $r->module,
+            'module_name'        => $r->moduleMaster?->name ?? $r->module,
+            'mandal_name'        => $r->mandal?->name,
+            'mandal_slug'        => $r->mandal?->slug,
+            'village_name'       => $r->village?->name,
+            'village_slug'       => $r->village?->slug,
             'application_number' => $r->application_number,
             'file_name'          => $r->file_name,
             'file_size_human'    => $r->file_size_human,
